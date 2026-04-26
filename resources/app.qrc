@@ -1,0 +1,9 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/">
+        <file alias="styles/app.qss">../assets/styles/app.qss</file>
+        <file alias="fonts/Vazirmatn-Regular.ttf">../assets/fonts/Vazirmatn-Regular.ttf</file>
+        <file alias="fonts/Vazirmatn-Medium.ttf">../assets/fonts/Vazirmatn-Medium.ttf</file>
+        <file alias="fonts/Vazirmatn-Bold.ttf">../assets/fonts/Vazirmatn-Bold.ttf</file>
+    </qresource>
+</RCC>

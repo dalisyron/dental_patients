@@ -1,0 +1,149 @@
+#include "ui/PatientDialog.h"
+
+#include "core/PersianText.h"
+#include "db/PatientRepository.h"
+
+#include <QFormLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QMessageBox>
+#include <QPlainTextEdit>
+#include <QPushButton>
+#include <QVBoxLayout>
+
+#include <utility>
+
+namespace DentalPatients {
+
+PatientDialog::PatientDialog(Mode mode, PatientRepository* repo, Patient initial, QWidget* parent)
+    : QDialog(parent), m_mode(mode), m_repo(repo), m_current(std::move(initial)) {
+    m_originalId = m_current.id;
+    m_originalFileNumber = PersianText::toAsciiDigits(m_current.fileNumber.trimmed());
+    setWindowTitle(mode == Mode::Add ? tr("افزودن بیمار جدید") : tr("ویرایش اطلاعات بیمار"));
+    setModal(true);
+    setLayoutDirection(Qt::RightToLeft);
+    resize(560, 480);
+    buildUi();
+}
+
+void PatientDialog::buildUi() {
+    auto* root = new QVBoxLayout(this);
+    root->setContentsMargins(20, 20, 20, 20);
+    root->setSpacing(14);
+
+    auto* form = new QFormLayout;
+    form->setLabelAlignment(Qt::AlignRight);
+    form->setSpacing(10);
+
+    m_name = new QLineEdit(m_current.fullName);
+    m_name->setPlaceholderText(tr("مثال: علی محمدی"));
+    form->addRow(tr("نام و نام خانوادگی *"), m_name);
+
+    m_fileNumber = new QLineEdit(m_current.fileNumber);
+    m_fileNumber->setPlaceholderText(tr("مثال: 1234"));
+    form->addRow(tr("شماره پرونده *"), m_fileNumber);
+
+    m_phone = new QLineEdit(m_current.phone);
+    m_phone->setPlaceholderText(tr("اختیاری"));
+    form->addRow(tr("تلفن"), m_phone);
+
+    m_notes = new QPlainTextEdit(m_current.notes);
+    m_notes->setPlaceholderText(tr("اختیاری"));
+    m_notes->setMinimumHeight(160);
+    form->addRow(tr("یادداشت"), m_notes);
+
+    root->addLayout(form);
+
+    m_errorLabel = new QLabel;
+    m_errorLabel->setObjectName(QStringLiteral("errorLabel"));
+    m_errorLabel->setWordWrap(true);
+    m_errorLabel->setVisible(false);
+    root->addWidget(m_errorLabel);
+
+    auto* buttons = new QHBoxLayout;
+    buttons->setSpacing(10);
+
+    m_saveBtn = new QPushButton(tr("ذخیره"));
+    m_saveBtn->setObjectName(QStringLiteral("primaryButton"));
+    m_saveBtn->setDefault(true);
+
+    auto* cancel = new QPushButton(tr("انصراف"));
+
+    buttons->addStretch(1);
+    buttons->addWidget(m_saveBtn);
+    buttons->addWidget(cancel);
+    root->addLayout(buttons);
+
+    connect(m_saveBtn, &QPushButton::clicked, this, &PatientDialog::onSave);
+    connect(cancel,    &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_name,       &QLineEdit::textChanged, this, &PatientDialog::onValidate);
+    connect(m_fileNumber, &QLineEdit::textChanged, this, &PatientDialog::onValidate);
+
+    onValidate();
+}
+
+bool PatientDialog::validate(QString* error) const {
+    if (m_name->text().trimmed().isEmpty()) {
+        if (error) *error = tr("نام و نام خانوادگی الزامی است.");
+        return false;
+    }
+    if (m_fileNumber->text().trimmed().isEmpty()) {
+        if (error) *error = tr("شماره پرونده الزامی است.");
+        return false;
+    }
+    return true;
+}
+
+void PatientDialog::onValidate() {
+    QString err;
+    const bool ok = validate(&err);
+    m_saveBtn->setEnabled(ok);
+    m_errorLabel->setText(err);
+    m_errorLabel->setVisible(!ok);
+}
+
+void PatientDialog::onSave() {
+    QString err;
+    if (!validate(&err)) {
+        QMessageBox::warning(this, tr("خطا"), err);
+        return;
+    }
+
+    Patient p = m_current;
+    p.fullName   = m_name->text().trimmed();
+    p.fileNumber = PersianText::toAsciiDigits(m_fileNumber->text().trimmed());
+    p.phone      = PersianText::toAsciiDigits(m_phone->text().trimmed());
+    p.notes      = m_notes->toPlainText().trimmed();
+
+    // The legacy CSV contains a small number of duplicate file numbers. Preserve
+    // them, but make new duplicates an explicit user decision.
+    if (m_mode == Mode::Add || p.fileNumber != m_originalFileNumber) {
+        auto existing = m_repo->findByFileNumber(p.fileNumber);
+        if (existing && existing->id != m_originalId) {
+            const auto reply = QMessageBox::question(this, tr("شماره پرونده تکراری"),
+                tr("این شماره پرونده قبلاً برای بیمار «%1» ثبت شده است.\n"
+                   "آیا می‌خواهید با همین شماره پرونده ذخیره شود؟").arg(existing->fullName),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            if (reply != QMessageBox::Yes) return;
+        }
+    }
+
+    QString opErr;
+    bool ok = false;
+    if (m_mode == Mode::Add) {
+        auto id = m_repo->insert(p, &opErr);
+        if (id) { p.id = *id; ok = true; }
+    } else {
+        ok = m_repo->update(p, &opErr);
+    }
+    if (!ok) {
+        QMessageBox::critical(this, tr("خطای پایگاه داده"),
+            tr("ذخیره با خطا مواجه شد:\n%1").arg(opErr));
+        return;
+    }
+    m_current = p;
+    accept();
+}
+
+} // namespace DentalPatients

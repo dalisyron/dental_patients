@@ -1,0 +1,14 @@
+#pragma once
+
+namespace DentalPatients::Version {
+
+constexpr int      kMajor      = @PROJECT_VERSION_MAJOR@;
+constexpr int      kMinor      = @PROJECT_VERSION_MINOR@;
+constexpr int      kPatch      = @PROJECT_VERSION_PATCH@;
+constexpr auto     kString     = "@PROJECT_VERSION@";
+constexpr auto     kAppName    = "@APP_DISPLAY_NAME@";
+constexpr auto     kAppNameFa  = "@APP_DISPLAY_NAME_FA@";
+constexpr auto     kPublisher  = "@APP_PUBLISHER@";
+constexpr auto     kExeName    = "@APP_EXE_NAME@";
+
+} // namespace DentalPatients::Version

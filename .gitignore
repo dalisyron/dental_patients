@@ -1,0 +1,47 @@
+# Build artefacts
+/build/
+/dist/
+*.user
+*.user.*
+.vs/
+.vscode/
+.idea/
+.claude/
+CMakeUserPresets.json
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.obj
+*.o
+*.a
+*.suo
+
+# Generated files
+src/core/Version.h
+build/setup-logs/
+build/setup-master.log*
+build/setup.pid
+/aqtinstall.log
+
+# OS junk
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Patient data must NEVER be committed
+patients.db
+patients.db-*
+patient_data/
+
+# Qt
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+*_autogen/

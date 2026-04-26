@@ -1,0 +1,36 @@
+// Windows resource file. Exposes version metadata for the .exe.
+// (App icon will be added in a future release.)
+
+#include <winver.h>
+
+#ifndef DENTAL_VERSION_MAJOR
+#define DENTAL_VERSION_MAJOR 1
+#define DENTAL_VERSION_MINOR 0
+#define DENTAL_VERSION_PATCH 0
+#define DENTAL_VERSION_STRING "1.0.0"
+#endif
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION    DENTAL_VERSION_MAJOR,DENTAL_VERSION_MINOR,DENTAL_VERSION_PATCH,0
+ PRODUCTVERSION DENTAL_VERSION_MAJOR,DENTAL_VERSION_MINOR,DENTAL_VERSION_PATCH,0
+ FILEFLAGSMASK  0x3fL
+ FILEFLAGS      0x0L
+ FILEOS         VOS_NT_WINDOWS32
+ FILETYPE       VFT_APP
+ FILESUBTYPE    VFT2_UNKNOWN
+{
+  BLOCK "StringFileInfo"
+  {
+    BLOCK "040904B0"
+    {
+      VALUE "CompanyName",      "Dental Patients\0"
+      VALUE "FileDescription",  "Dental Patients - Persian patient records manager\0"
+      VALUE "FileVersion",      DENTAL_VERSION_STRING "\0"
+      VALUE "InternalName",     "DentalPatients\0"
+      VALUE "OriginalFilename", "DentalPatients.exe\0"
+      VALUE "ProductName",      "Dental Patients\0"
+      VALUE "ProductVersion",   DENTAL_VERSION_STRING "\0"
+    }
+  }
+  BLOCK "VarFileInfo" { VALUE "Translation", 0x409, 0x4B0 }
+}
