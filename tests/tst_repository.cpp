@@ -15,10 +15,11 @@ class TstRepository : public QObject {
 private:
     QTemporaryDir m_dir;
 
-    Patient mk(const QString& name, const QString& fileNo,
+    Patient mk(const QString& familyName, const QString& givenName, const QString& fileNo,
                const QString& phone = {}, const QString& notes = {}) {
         Patient p;
-        p.fullName = name;
+        p.familyName = familyName;
+        p.givenName = givenName;
         p.fileNumber = fileNo;
         p.phone = phone;
         p.notes = notes;
@@ -47,7 +48,6 @@ private slots:
     }
 
     void init() {
-        // Truncate state between tests.
         QSqlQuery q(Database::instance().sql());
         QVERIFY(q.exec(QStringLiteral("DELETE FROM patients_trash;")));
         QVERIFY(q.exec(QStringLiteral("DELETE FROM patients;")));
@@ -56,21 +56,24 @@ private slots:
     void insertAndFind() {
         PatientRepository repo(Database::instance().sql());
         QString err;
-        auto id = insert(repo, mk(QStringLiteral("علی محمدی"), QStringLiteral("1234"), QStringLiteral("09120000001"), QStringLiteral("test")), &err);
+        auto id = insert(repo, mk(QStringLiteral("محمدی"), QStringLiteral("علی"), QStringLiteral("1234"),
+                                  QStringLiteral("09120000001"), QStringLiteral("test")), &err);
         QVERIFY2(id.has_value(), qPrintable(err));
         QCOMPARE(repo.count(), 1);
 
         auto fetched = repo.findById(*id);
         QVERIFY(fetched.has_value());
-        QCOMPARE(fetched->fullName, QStringLiteral("علی محمدی"));
+        QCOMPARE(fetched->familyName, QStringLiteral("محمدی"));
+        QCOMPARE(fetched->givenName, QStringLiteral("علی"));
+        QCOMPARE(fetched->displayName(), QStringLiteral("علی محمدی"));
         QCOMPARE(fetched->fileNumber, QStringLiteral("1234"));
     }
 
     void allowsLegacyDuplicateFileNumberRows() {
         PatientRepository repo(Database::instance().sql());
         QString err;
-        QVERIFY2(insert(repo, mk(QStringLiteral("الف"), QStringLiteral("100")), &err).has_value(), qPrintable(err));
-        auto dupe = insert(repo, mk(QStringLiteral("ب"), QStringLiteral("100")), &err);
+        QVERIFY2(insert(repo, mk(QStringLiteral("الف"), QStringLiteral("الف"), QStringLiteral("100")), &err).has_value(), qPrintable(err));
+        auto dupe = insert(repo, mk(QStringLiteral("ب"), QStringLiteral("ب"), QStringLiteral("100")), &err);
         QVERIFY2(dupe.has_value(), qPrintable(err));
         QCOMPARE(repo.count(), 2);
     }
@@ -78,21 +81,24 @@ private slots:
     void update() {
         PatientRepository repo(Database::instance().sql());
         QString err;
-        auto id = insert(repo, mk(QStringLiteral("aaa"), QStringLiteral("9001")), &err);
+        auto id = insert(repo, mk(QStringLiteral("aaa"), QStringLiteral("reza"), QStringLiteral("9001")), &err);
         QVERIFY2(id.has_value(), qPrintable(err));
         Patient p = *repo.findById(*id);
-        p.fullName = QStringLiteral("bbb");
+        p.familyName = QStringLiteral("bbb");
+        p.givenName = QStringLiteral("ali");
         p.notes = QStringLiteral("hello");
         QVERIFY(repo.update(p));
         auto re = repo.findById(*id);
-        QCOMPARE(re->fullName, QStringLiteral("bbb"));
+        QCOMPARE(re->familyName, QStringLiteral("bbb"));
+        QCOMPARE(re->givenName, QStringLiteral("ali"));
+        QCOMPARE(re->displayName(), QStringLiteral("ali bbb"));
         QCOMPARE(re->notes, QStringLiteral("hello"));
     }
 
     void softDeleteAndRestore() {
         PatientRepository repo(Database::instance().sql());
         QString err;
-        auto id = insert(repo, mk(QStringLiteral("به‌حذف‌شو"), QStringLiteral("777")), &err);
+        auto id = insert(repo, mk(QStringLiteral("حذف"), QStringLiteral("شونده"), QStringLiteral("777")), &err);
         QVERIFY2(id.has_value(), qPrintable(err));
         QCOMPARE(repo.count(), 1);
 
@@ -107,11 +113,9 @@ private slots:
 
     void searchHandlesPersianVariants() {
         PatientRepository repo(Database::instance().sql());
-        // Stored with Arabic Yeh.
         QString err;
-        QVERIFY2(insert(repo, mk(QString::fromUtf8("علي اكبري"), QStringLiteral("321")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QString::fromUtf8("اكبري"), QString::fromUtf8("علي"), QStringLiteral("321")), &err).has_value(), qPrintable(err));
 
-        // Searching with Persian Yeh should still find it.
         auto resA = repo.search(QString::fromUtf8("علي"));
         auto resB = repo.search(QString::fromUtf8("علی"));
         QCOMPARE(resA.size(), 1);
@@ -121,10 +125,9 @@ private slots:
     void searchByFileNumber() {
         PatientRepository repo(Database::instance().sql());
         QString err;
-        QVERIFY2(insert(repo, mk(QStringLiteral("X"), QStringLiteral("5555")), &err).has_value(), qPrintable(err));
-        QVERIFY2(insert(repo, mk(QStringLiteral("Y"), QStringLiteral("5556")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("X"), QStringLiteral("A"), QStringLiteral("5555")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("Y"), QStringLiteral("B"), QStringLiteral("5556")), &err).has_value(), qPrintable(err));
 
-        // Persian-digit query should still find ASCII-stored numbers.
         auto p = repo.search(QString::fromUtf8("۵۵۵۵"));
         QCOMPARE(p.size(), 1);
         QCOMPARE(p.first().fileNumber, QStringLiteral("5555"));
@@ -133,19 +136,43 @@ private slots:
     void searchPrefix() {
         PatientRepository repo(Database::instance().sql());
         QString err;
-        QVERIFY2(insert(repo, mk(QStringLiteral("ahmadi reza"), QStringLiteral("1")), &err).has_value(), qPrintable(err));
-        QVERIFY2(insert(repo, mk(QStringLiteral("ahmadi ali"),  QStringLiteral("2")), &err).has_value(), qPrintable(err));
-        QVERIFY2(insert(repo, mk(QStringLiteral("rezaei"),       QStringLiteral("3")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("ahmadi"), QStringLiteral("reza"), QStringLiteral("1")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("ahmadi"), QStringLiteral("ali"),  QStringLiteral("2")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("rezaei"), QStringLiteral("ali"),  QStringLiteral("3")), &err).has_value(), qPrintable(err));
 
         auto p = repo.search(QStringLiteral("ahm"));
         QCOMPARE(p.size(), 2);
+    }
+
+    void sortByFamilyNameTiesByGivenName() {
+        PatientRepository repo(Database::instance().sql());
+        QString err;
+        QVERIFY2(insert(repo, mk(QStringLiteral("z"), QStringLiteral("c"), QStringLiteral("3")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("2")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("a"), QStringLiteral("a"), QStringLiteral("1")), &err).has_value(), qPrintable(err));
+
+        auto rows = repo.search({}, 10, PatientRepository::SortField::FamilyName, true);
+        QCOMPARE(rows.at(0).displayName(), QStringLiteral("a a"));
+        QCOMPARE(rows.at(1).displayName(), QStringLiteral("b a"));
+        QCOMPARE(rows.at(2).displayName(), QStringLiteral("c z"));
+    }
+
+    void sortByFileNumberUsesNumericOrder() {
+        PatientRepository repo(Database::instance().sql());
+        QString err;
+        QVERIFY2(insert(repo, mk(QStringLiteral("x"), QStringLiteral("x"), QStringLiteral("10")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("y"), QStringLiteral("y"), QStringLiteral("2")), &err).has_value(), qPrintable(err));
+
+        auto rows = repo.search({}, 10, PatientRepository::SortField::FileNumber, true);
+        QCOMPARE(rows.at(0).fileNumber, QStringLiteral("2"));
+        QCOMPARE(rows.at(1).fileNumber, QStringLiteral("10"));
     }
 
     void searchEmptyReturnsAll() {
         PatientRepository repo(Database::instance().sql());
         for (int i = 0; i < 5; ++i) {
             QString err;
-            QVERIFY2(insert(repo, mk(QStringLiteral("p%1").arg(i), QString::number(2000 + i)), &err).has_value(), qPrintable(err));
+            QVERIFY2(insert(repo, mk(QStringLiteral("p%1").arg(i), QStringLiteral("g"), QString::number(2000 + i)), &err).has_value(), qPrintable(err));
         }
         QCOMPARE(repo.search({}).size(), 5);
     }
@@ -153,15 +180,15 @@ private slots:
     void insertManyHandlesDuplicates() {
         PatientRepository repo(Database::instance().sql());
         QVector<Patient> batch{
-            mk(QStringLiteral("a"), QStringLiteral("100")),
-            mk(QStringLiteral("b"), QStringLiteral("100")),  // legacy duplicate preserved
-            mk(QStringLiteral("c"), QStringLiteral("101")),
+            mk(QStringLiteral("a"), QStringLiteral("a"), QStringLiteral("100")),
+            mk(QStringLiteral("b"), QStringLiteral("b"), QStringLiteral("100")),
+            mk(QStringLiteral("c"), QStringLiteral("c"), QStringLiteral("101")),
         };
-        int dupes = 0; QString err;
-        const int imported = repo.insertMany(batch, &dupes, &err);
+        int skipped = 0; QString err;
+        const int imported = repo.insertMany(batch, &skipped, &err);
         QVERIFY2(err.isEmpty(), qPrintable(err));
         QCOMPARE(imported, 3);
-        QCOMPARE(dupes, 0);
+        QCOMPARE(skipped, 0);
     }
 
     void meta() {

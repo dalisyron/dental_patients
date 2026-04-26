@@ -33,8 +33,8 @@ void TrashDialog::buildUi() {
     hint->setWordWrap(true);
     root->addWidget(hint);
 
-    m_table = new QTableWidget(0, 4);
-    m_table->setHorizontalHeaderLabels({tr("شماره پرونده"), tr("نام"), tr("تلفن"), tr("یادداشت")});
+    m_table = new QTableWidget(0, 5);
+    m_table->setHorizontalHeaderLabels({tr("نام خانوادگی"), tr("نام"), tr("شماره پرونده"), tr("تلفن"), tr("یادداشت")});
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setSelectionMode(QAbstractItemView::SingleSelection);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -60,10 +60,11 @@ void TrashDialog::refresh() {
     m_table->setRowCount(m_data.size());
     for (int i = 0; i < m_data.size(); ++i) {
         const Patient& p = m_data.at(i);
-        m_table->setItem(i, 0, new QTableWidgetItem(PersianText::toPersianDigits(p.fileNumber)));
-        m_table->setItem(i, 1, new QTableWidgetItem(p.fullName));
-        m_table->setItem(i, 2, new QTableWidgetItem(PersianText::toPersianDigits(p.phone)));
-        m_table->setItem(i, 3, new QTableWidgetItem(p.notes));
+        m_table->setItem(i, 0, new QTableWidgetItem(p.familyName));
+        m_table->setItem(i, 1, new QTableWidgetItem(p.givenName));
+        m_table->setItem(i, 2, new QTableWidgetItem(PersianText::toPersianDigits(p.fileNumber)));
+        m_table->setItem(i, 3, new QTableWidgetItem(PersianText::toPersianDigits(p.phone)));
+        m_table->setItem(i, 4, new QTableWidgetItem(p.notes));
     }
     m_table->resizeColumnsToContents();
 }

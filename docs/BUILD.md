@@ -53,7 +53,7 @@ scripts\build-release.ps1     # release build + windeployqt + installer
 | Patient data in `%APPDATA%`, NOT install dir | Uninstall cannot accidentally remove patient records. Per-user storage matches Windows conventions. |
 | Soft delete + daily backup with rotation | Belt-and-braces against accidental deletion or corruption. |
 
-## Known cosmetic gaps for v1.0.0
+## Known cosmetic gaps
 
 - No custom application icon yet (placeholder uses the system default).
 - Single light theme only - dark mode is an easy future win.

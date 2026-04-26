@@ -4,6 +4,11 @@
 
 namespace DentalPatients::PersianText {
 
+struct NameParts {
+    QString familyName;
+    QString givenName;
+};
+
 // Normalise Arabic-script variants to canonical Persian forms and strip
 // joiners/diacritics so two visually identical names compare equal.
 //
@@ -20,6 +25,12 @@ QString normalize(const QString& input);
 
 // Same as normalize() but also lowercases ASCII (for file-number search).
 QString normalizeForSearch(const QString& input);
+
+// Clinic CSV names are in "family name ... given name" order. The final token
+// is treated as given name; all preceding tokens remain family name.
+NameParts splitFamilyGiven(const QString& fullName);
+
+QString displayName(const QString& givenName, const QString& familyName);
 
 // Convert ASCII digits to Persian digits for display ("123" -> "۱۲۳").
 QString toPersianDigits(const QString& input);

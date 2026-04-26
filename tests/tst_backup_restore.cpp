@@ -36,7 +36,7 @@ private slots:
 
     void backupCreatedAndListed() {
         PatientRepository repo(Database::instance().sql());
-        Patient p; p.fullName = QStringLiteral("a"); p.fileNumber = QStringLiteral("1");
+        Patient p; p.familyName = QStringLiteral("a"); p.givenName = QStringLiteral("a"); p.fileNumber = QStringLiteral("1");
         QString err;
         QVERIFY2(repo.insert(p, &err).has_value(), qPrintable(err));
 
@@ -52,13 +52,13 @@ private slots:
         // Take a backup with one row, then add another row, then restore the
         // backup - second row should be gone.
         PatientRepository repo(Database::instance().sql());
-        Patient p; p.fullName = QStringLiteral("a"); p.fileNumber = QStringLiteral("1");
+        Patient p; p.familyName = QStringLiteral("a"); p.givenName = QStringLiteral("a"); p.fileNumber = QStringLiteral("1");
         QString err;
         QVERIFY2(repo.insert(p, &err).has_value(), qPrintable(err));
         const QString backup = Database::instance().createBackup();
         QVERIFY(!backup.isEmpty());
 
-        Patient p2; p2.fullName = QStringLiteral("b"); p2.fileNumber = QStringLiteral("2");
+        Patient p2; p2.familyName = QStringLiteral("b"); p2.givenName = QStringLiteral("b"); p2.fileNumber = QStringLiteral("2");
         QVERIFY2(repo.insert(p2, &err).has_value(), qPrintable(err));
         QCOMPARE(repo.count(), 2);
 

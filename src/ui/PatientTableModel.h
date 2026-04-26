@@ -11,8 +11,9 @@ class PatientTableModel : public QAbstractTableModel {
     Q_OBJECT
 public:
     enum Column {
-        Col_FileNumber = 0,
-        Col_FullName,
+        Col_FamilyName = 0,
+        Col_GivenName,
+        Col_FileNumber,
         Col_Phone,
         Col_Notes,
         Col_Count

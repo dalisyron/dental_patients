@@ -39,8 +39,9 @@ QVariant PatientTableModel::data(const QModelIndex& idx, int role) const {
 
     if (role == Qt::DisplayRole) {
         switch (idx.column()) {
+            case Col_FamilyName: return p.familyName;
+            case Col_GivenName:  return p.givenName;
             case Col_FileNumber: return PersianText::toPersianDigits(p.fileNumber);
-            case Col_FullName:   return p.fullName;
             case Col_Phone:      return PersianText::toPersianDigits(p.phone);
             case Col_Notes: {
                 // Notes can be long - show single-line preview in the table.
@@ -68,8 +69,9 @@ QVariant PatientTableModel::headerData(int section, Qt::Orientation orientation,
     if (role != Qt::DisplayRole) return {};
     if (orientation == Qt::Horizontal) {
         switch (section) {
+            case Col_FamilyName: return tr("نام خانوادگی");
+            case Col_GivenName:  return tr("نام");
             case Col_FileNumber: return tr("شماره پرونده");
-            case Col_FullName:   return tr("نام و نام خانوادگی");
             case Col_Phone:      return tr("تلفن");
             case Col_Notes:      return tr("یادداشت");
             default: return {};

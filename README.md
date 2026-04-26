@@ -17,6 +17,9 @@ A native Windows application for managing dental patient records in Persian.
 On the first launch the app imports `patient_list_merged_sorted.csv`
 (bundled in the install directory) into the local database. After that the
 CSV is no longer needed - all data lives in `%APPDATA%\DentalPatients\patients.db`.
+Imported names are split into family name and given name using the clinic CSV
+convention: the final token is the given name, and all previous tokens form the
+family name.
 
 ### Updates
 Hand the user a newer `DentalPatients-Setup-<new_version>.exe`. Double-click,
@@ -92,6 +95,8 @@ installer\Output\DentalPatients-Setup-<version>.exe
 - Soft delete: removed records moved to `patients_trash`, restorable from UI.
 - Legacy CSV duplicate file numbers are preserved; the UI warns before creating
   a new duplicate.
+- Patient names are stored as separate family/given-name fields. Sorting is
+  limited to family name (with given-name tie-break) and file number.
 - Patient data lives in `%APPDATA%`, never inside the install dir, so an
   uninstall **cannot** remove patient records.
 

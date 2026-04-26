@@ -28,8 +28,15 @@ QString textForStorage(const QString& value) {
     return value.isNull() ? QStringLiteral("") : value;
 }
 
+QString nameForStorage(const QString& value) {
+    return PersianText::normalize(value);
+}
+
 QString searchTextFor(const Patient& p, const QString& fileNumber, const QString& phone, const QString& notes) {
-    return PersianText::normalizeForSearch(p.fullName + QLatin1Char(' ')
+    const QString display = p.displayName();
+    return PersianText::normalizeForSearch(p.familyName + QLatin1Char(' ')
+                                          + p.givenName + QLatin1Char(' ')
+                                          + display + QLatin1Char(' ')
                                           + fileNumber + QLatin1Char(' ')
                                           + phone + QLatin1Char(' ')
                                           + notes);
@@ -52,16 +59,29 @@ Patient readPatient(const QSqlQuery& q) {
     Patient p;
     p.id         = q.value(0).toLongLong();
     p.fileNumber = q.value(1).toString();
-    p.fullName   = q.value(2).toString();
-    p.phone      = q.value(3).toString();
-    p.notes      = q.value(4).toString();
-    p.createdAt  = q.value(5).toLongLong();
-    p.updatedAt  = q.value(6).toLongLong();
+    p.familyName = q.value(2).toString();
+    p.givenName  = q.value(3).toString();
+    p.phone      = q.value(4).toString();
+    p.notes      = q.value(5).toString();
+    p.createdAt  = q.value(6).toLongLong();
+    p.updatedAt  = q.value(7).toLongLong();
     return p;
 }
 
 constexpr auto kSelectColumns =
-    "SELECT id, file_number, full_name, phone, notes, created_at, updated_at FROM patients";
+    "SELECT id, file_number, family_name, given_name, phone, notes, created_at, updated_at FROM patients";
+
+QString orderBy(PatientRepository::SortField sortField, bool ascending) {
+    const QString dir = ascending ? QStringLiteral("ASC") : QStringLiteral("DESC");
+    if (sortField == PatientRepository::SortField::FileNumber) {
+        return QStringLiteral(
+            " ORDER BY CAST(file_number AS INTEGER) %1, file_number COLLATE NOCASE %1, "
+            "family_name COLLATE NOCASE ASC, given_name COLLATE NOCASE ASC").arg(dir);
+    }
+    return QStringLiteral(
+        " ORDER BY family_name COLLATE NOCASE %1, given_name COLLATE NOCASE %1, "
+        "CAST(file_number AS INTEGER) ASC, file_number COLLATE NOCASE ASC").arg(dir);
+}
 
 } // namespace
 
@@ -70,15 +90,21 @@ PatientRepository::PatientRepository(QSqlDatabase db) : m_db(std::move(db)) {}
 std::optional<qint64> PatientRepository::insert(const Patient& p, QString* error) {
     const qint64 ts = p.createdAt > 0 ? p.createdAt : nowSeconds();
     const QString fileNumber = fileNumberForStorage(p.fileNumber);
+    Patient stored = p;
+    stored.familyName = nameForStorage(p.familyName);
+    stored.givenName = nameForStorage(p.givenName);
     const QString phone = phoneForStorage(p.phone);
     const QString notes = textForStorage(p.notes);
+    const QString display = stored.displayName();
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
-        "INSERT INTO patients(file_number, full_name, search_text, phone, notes, created_at, updated_at) "
-        "VALUES(?, ?, ?, ?, ?, ?, ?);"));
+        "INSERT INTO patients(file_number, full_name, family_name, given_name, search_text, phone, notes, created_at, updated_at) "
+        "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);"));
     q.addBindValue(fileNumber);
-    q.addBindValue(p.fullName);
-    q.addBindValue(searchTextFor(p, fileNumber, phone, notes));
+    q.addBindValue(display);
+    q.addBindValue(stored.familyName);
+    q.addBindValue(stored.givenName);
+    q.addBindValue(searchTextFor(stored, fileNumber, phone, notes));
     q.addBindValue(phone);
     q.addBindValue(notes);
     q.addBindValue(ts);
@@ -100,21 +126,26 @@ int PatientRepository::insertMany(const QVector<Patient>& ps, int* skippedRows, 
 
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
-        "INSERT INTO patients(file_number, full_name, search_text, phone, notes, created_at, updated_at) "
-        "VALUES(?, ?, ?, ?, ?, ?, ?);"));
+        "INSERT INTO patients(file_number, full_name, family_name, given_name, search_text, phone, notes, created_at, updated_at) "
+        "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);"));
 
     for (const Patient& p : ps) {
         const qint64 ts = p.createdAt > 0 ? p.createdAt : nowSeconds();
         const QString fileNumber = fileNumberForStorage(p.fileNumber);
+        Patient stored = p;
+        stored.familyName = nameForStorage(p.familyName);
+        stored.givenName = nameForStorage(p.givenName);
         const QString phone = phoneForStorage(p.phone);
         const QString notes = textForStorage(p.notes);
         q.bindValue(0, fileNumber);
-        q.bindValue(1, p.fullName);
-        q.bindValue(2, searchTextFor(p, fileNumber, phone, notes));
-        q.bindValue(3, phone);
-        q.bindValue(4, notes);
-        q.bindValue(5, ts);
-        q.bindValue(6, p.updatedAt > 0 ? p.updatedAt : ts);
+        q.bindValue(1, stored.displayName());
+        q.bindValue(2, stored.familyName);
+        q.bindValue(3, stored.givenName);
+        q.bindValue(4, searchTextFor(stored, fileNumber, phone, notes));
+        q.bindValue(5, phone);
+        q.bindValue(6, notes);
+        q.bindValue(7, ts);
+        q.bindValue(8, p.updatedAt > 0 ? p.updatedAt : ts);
         if (!q.exec()) {
             if (error) *error = q.lastError().text();
             m_db.rollback();
@@ -134,16 +165,21 @@ int PatientRepository::insertMany(const QVector<Patient>& ps, int* skippedRows, 
 
 bool PatientRepository::update(const Patient& p, QString* error) {
     const QString fileNumber = fileNumberForStorage(p.fileNumber);
+    Patient stored = p;
+    stored.familyName = nameForStorage(p.familyName);
+    stored.givenName = nameForStorage(p.givenName);
     const QString phone = phoneForStorage(p.phone);
     const QString notes = textForStorage(p.notes);
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
         "UPDATE patients "
-        "SET file_number = ?, full_name = ?, search_text = ?, phone = ?, notes = ?, updated_at = ? "
+        "SET file_number = ?, full_name = ?, family_name = ?, given_name = ?, search_text = ?, phone = ?, notes = ?, updated_at = ? "
         "WHERE id = ?;"));
     q.addBindValue(fileNumber);
-    q.addBindValue(p.fullName);
-    q.addBindValue(searchTextFor(p, fileNumber, phone, notes));
+    q.addBindValue(stored.displayName());
+    q.addBindValue(stored.familyName);
+    q.addBindValue(stored.givenName);
+    q.addBindValue(searchTextFor(stored, fileNumber, phone, notes));
     q.addBindValue(phone);
     q.addBindValue(notes);
     q.addBindValue(nowSeconds());
@@ -162,8 +198,8 @@ bool PatientRepository::softDelete(qint64 id, QString* error) {
     }
     QSqlQuery copy(m_db);
     copy.prepare(QStringLiteral(
-        "INSERT INTO patients_trash(id, file_number, full_name, search_text, phone, notes, created_at, updated_at, deleted_at) "
-        "SELECT id, file_number, full_name, search_text, phone, notes, created_at, updated_at, ? FROM patients WHERE id = ?;"));
+        "INSERT INTO patients_trash(id, file_number, full_name, family_name, given_name, search_text, phone, notes, created_at, updated_at, deleted_at) "
+        "SELECT id, file_number, full_name, family_name, given_name, search_text, phone, notes, created_at, updated_at, ? FROM patients WHERE id = ?;"));
     copy.addBindValue(nowSeconds());
     copy.addBindValue(id);
     if (!copy.exec()) {
@@ -193,8 +229,8 @@ bool PatientRepository::restoreFromTrash(qint64 id, QString* error) {
     }
     QSqlQuery restore(m_db);
     restore.prepare(QStringLiteral(
-        "INSERT INTO patients(id, file_number, full_name, search_text, phone, notes, created_at, updated_at) "
-        "SELECT id, file_number, full_name, search_text, phone, notes, created_at, updated_at FROM patients_trash WHERE id = ?;"));
+        "INSERT INTO patients(id, file_number, full_name, family_name, given_name, search_text, phone, notes, created_at, updated_at) "
+        "SELECT id, file_number, full_name, family_name, given_name, search_text, phone, notes, created_at, updated_at FROM patients_trash WHERE id = ?;"));
     restore.addBindValue(id);
     if (!restore.exec()) {
         if (error) *error = restore.lastError().text();
@@ -253,25 +289,29 @@ std::optional<Patient> PatientRepository::findById(qint64 id) const {
 
 std::optional<Patient> PatientRepository::findByFileNumber(const QString& fileNumber) const {
     QSqlQuery q(m_db);
-    q.prepare(QString::fromLatin1(kSelectColumns) + QStringLiteral(" WHERE file_number = ?;"));
+    q.prepare(QString::fromLatin1(kSelectColumns) + QStringLiteral(
+        " WHERE file_number = ? ORDER BY family_name COLLATE NOCASE, given_name COLLATE NOCASE LIMIT 1;"));
     q.addBindValue(fileNumberForStorage(fileNumber));
     if (q.exec() && q.next()) return readPatient(q);
     return std::nullopt;
 }
 
-QVector<Patient> PatientRepository::search(const QString& query, int limit) const {
+QVector<Patient> PatientRepository::search(const QString& query,
+                                           int limit,
+                                           SortField sortField,
+                                           bool ascending) const {
     QVector<Patient> results;
     const QString normalised = PersianText::normalizeForSearch(query);
+    const QString sortClause = orderBy(sortField, ascending);
 
     QSqlQuery q(m_db);
     if (normalised.isEmpty()) {
-        q.prepare(QString::fromLatin1(kSelectColumns) + QStringLiteral(
-            " ORDER BY full_name COLLATE NOCASE LIMIT ?;"));
+        q.prepare(QString::fromLatin1(kSelectColumns) + sortClause + QStringLiteral(" LIMIT ?;"));
         q.addBindValue(limit);
     } else {
         q.prepare(QString::fromLatin1(kSelectColumns) + QStringLiteral(
             " WHERE id IN (SELECT rowid FROM patients_fts WHERE patients_fts MATCH ?) "
-            " ORDER BY full_name COLLATE NOCASE LIMIT ?;"));
+        ) + sortClause + QStringLiteral(" LIMIT ?;"));
         q.addBindValue(toFtsPrefixQuery(normalised));
         q.addBindValue(limit);
     }
@@ -284,7 +324,7 @@ QVector<Patient> PatientRepository::trash(int limit) const {
     QVector<Patient> results;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
-        "SELECT id, file_number, full_name, phone, notes, created_at, updated_at "
+        "SELECT id, file_number, family_name, given_name, phone, notes, created_at, updated_at "
         "FROM patients_trash ORDER BY deleted_at DESC LIMIT ?;"));
     q.addBindValue(limit);
     if (!q.exec()) return {};

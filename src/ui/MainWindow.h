@@ -1,5 +1,7 @@
 #pragma once
 
+#include "db/PatientRepository.h"
+
 #include <QMainWindow>
 #include <QTimer>
 
@@ -10,7 +12,6 @@ class QAction;
 
 namespace DentalPatients {
 
-class PatientRepository;
 class PatientTableModel;
 
 class MainWindow : public QMainWindow {
@@ -20,6 +21,7 @@ public:
 
 private slots:
     void onSearchChanged(const QString&);
+    void onHeaderClicked(int section);
     void onAddClicked();
     void onEditCurrent();
     void onDeleteCurrent();
@@ -33,6 +35,7 @@ private:
     void buildUi();
     void buildMenus();
     void refreshTable(const QString& query = {});
+    PatientRepository::SortField currentSortField() const;
     void selectFirstRow();
     void updateStatus();
 
@@ -45,6 +48,8 @@ private:
 
     QTimer m_searchDebounce;
     QString m_pendingQuery;
+    int m_sortColumn = 0;
+    Qt::SortOrder m_sortOrder = Qt::AscendingOrder;
 
     QAction* m_actAdd = nullptr;
     QAction* m_actEdit = nullptr;

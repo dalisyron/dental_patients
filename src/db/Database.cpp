@@ -1,5 +1,7 @@
 #include "db/Database.h"
 
+#include "core/PersianText.h"
+
 #include <QCoreApplication>
 #include <QDate>
 #include <QDateTime>
@@ -221,9 +223,87 @@ bool Database::runMigrations(QString* error) {
             m_db.rollback();
             return false;
         }
+        current = 1;
     }
 
-    // Future migrations: append `if (current < 2) { ... bump(2); }` blocks here.
+    // ----- Migration 2: split names into family/given columns ---------------
+    if (current < 2) {
+        if (!m_db.transaction()) {
+            if (error) *error = m_db.lastError().text();
+            return false;
+        }
+
+        const QStringList stmts = {
+            QStringLiteral("ALTER TABLE patients ADD COLUMN family_name TEXT NOT NULL DEFAULT '';"),
+            QStringLiteral("ALTER TABLE patients ADD COLUMN given_name TEXT NOT NULL DEFAULT '';"),
+            QStringLiteral("ALTER TABLE patients_trash ADD COLUMN family_name TEXT NOT NULL DEFAULT '';"),
+            QStringLiteral("ALTER TABLE patients_trash ADD COLUMN given_name TEXT NOT NULL DEFAULT '';"),
+            QStringLiteral("CREATE INDEX idx_patients_family_given ON patients(family_name, given_name);"),
+        };
+
+        for (const auto& s : stmts) {
+            if (!execNoResult(s, error)) {
+                m_db.rollback();
+                return false;
+            }
+        }
+
+        auto migrateRows = [&](const QString& table, bool hasFtsTriggers) -> bool {
+            QSqlQuery select(m_db);
+            if (!select.exec(QStringLiteral(
+                    "SELECT id, full_name, file_number, phone, notes FROM %1;").arg(table))) {
+                if (error) *error = select.lastError().text();
+                return false;
+            }
+
+            while (select.next()) {
+                const qint64 id = select.value(0).toLongLong();
+                const auto parts = PersianText::splitFamilyGiven(select.value(1).toString());
+                const QString display = PersianText::displayName(parts.givenName, parts.familyName);
+                const QString searchText = PersianText::normalizeForSearch(
+                    parts.familyName + QLatin1Char(' ') +
+                    parts.givenName + QLatin1Char(' ') +
+                    display + QLatin1Char(' ') +
+                    select.value(2).toString() + QLatin1Char(' ') +
+                    select.value(3).toString() + QLatin1Char(' ') +
+                    select.value(4).toString());
+
+                QSqlQuery update(m_db);
+                update.prepare(QStringLiteral(
+                    "UPDATE %1 SET family_name = ?, given_name = ?, full_name = ?, search_text = ? WHERE id = ?;"
+                ).arg(table));
+                update.addBindValue(parts.familyName);
+                update.addBindValue(parts.givenName);
+                update.addBindValue(display);
+                update.addBindValue(searchText);
+                update.addBindValue(id);
+                if (!update.exec()) {
+                    if (error) *error = update.lastError().text();
+                    return false;
+                }
+            }
+
+            if (hasFtsTriggers) {
+                QSqlQuery rebuild(m_db);
+                if (!rebuild.exec(QStringLiteral("INSERT INTO patients_fts(patients_fts) VALUES('rebuild');"))) {
+                    if (error) *error = rebuild.lastError().text();
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        if (!migrateRows(QStringLiteral("patients"), true) ||
+            !migrateRows(QStringLiteral("patients_trash"), false) ||
+            !bump(2) || !m_db.commit()) {
+            if (error && error->isEmpty()) *error = m_db.lastError().text();
+            m_db.rollback();
+            return false;
+        }
+        current = 2;
+    }
+
+    // Future migrations: append `if (current < 3) { ... bump(3); }` blocks here.
 
     return true;
 }

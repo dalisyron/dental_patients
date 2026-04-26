@@ -44,14 +44,20 @@ private slots:
             ts.setEncoding(QStringConverter::Utf8);
             ts.setGenerateByteOrderMark(true);
             ts << "Patient Name,Case Number\n";
-            ts << "علی محمدی,1234\n";
-            ts << "زهرا حسینی,5678\n";
+            ts << "محمدی علی,1234\n";
+            ts << "حسینی زهرا,5678\n";
         }
         PatientRepository repo(Database::instance().sql());
         auto r = CsvImporter::importFromFile(path, repo);
         QVERIFY2(r.ok, qPrintable(r.error));
         QCOMPARE(r.imported, 2);
         QCOMPARE(repo.count(), 2);
+
+        auto p = repo.findByFileNumber(QStringLiteral("1234"));
+        QVERIFY(p.has_value());
+        QCOMPARE(p->familyName, QStringLiteral("محمدی"));
+        QCOMPARE(p->givenName, QStringLiteral("علی"));
+        QCOMPARE(p->displayName(), QStringLiteral("علی محمدی"));
     }
 
     void quotedFieldsAndCommas() {
@@ -71,7 +77,8 @@ private slots:
         QCOMPARE(r.imported, 2);
         auto p = repo.findByFileNumber(QStringLiteral("1234"));
         QVERIFY(p.has_value());
-        QCOMPARE(p->fullName, QString::fromUtf8("محمدی, علی"));
+        QCOMPARE(p->familyName, QStringLiteral("محمدی,"));
+        QCOMPARE(p->givenName, QStringLiteral("علی"));
     }
 
     void importsRealSeedCsvIfPresent() {
@@ -84,6 +91,11 @@ private slots:
         QVERIFY(r.imported > 0);
         QVERIFY(repo.count() == r.imported);
         QCOMPARE(r.imported, 3365);
+
+        auto first = repo.findByFileNumber(QStringLiteral("2910"));
+        QVERIFY(first.has_value());
+        QCOMPARE(first->familyName, QStringLiteral("اباذری"));
+        QCOMPARE(first->givenName, QStringLiteral("صدیقه"));
     }
 };
 

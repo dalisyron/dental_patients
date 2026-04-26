@@ -1,5 +1,6 @@
 #include "db/CsvImporter.h"
 
+#include "core/PersianText.h"
 #include "db/PatientRepository.h"
 #include "db/Patient.h"
 
@@ -102,9 +103,11 @@ CsvImporter::Result CsvImporter::importFromFile(const QString& path, PatientRepo
         if (row.size() <= qMax(nameIdx, fileIdx)) continue;
 
         Patient p;
-        p.fullName   = row.at(nameIdx).trimmed();
+        const auto parts = PersianText::splitFamilyGiven(row.at(nameIdx).trimmed());
+        p.familyName = parts.familyName;
+        p.givenName  = parts.givenName;
         p.fileNumber = row.at(fileIdx).trimmed();
-        if (p.fullName.isEmpty() || p.fileNumber.isEmpty()) continue;
+        if ((p.familyName.isEmpty() && p.givenName.isEmpty()) || p.fileNumber.isEmpty()) continue;
 
         batch.append(p);
         ++r.parsed;

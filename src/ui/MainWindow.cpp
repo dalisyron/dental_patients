@@ -108,7 +108,7 @@ void MainWindow::buildUi() {
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setSelectionMode(QAbstractItemView::SingleSelection);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_table->setSortingEnabled(false);   // sort is repo-side; flipping headers would require proxy
+    m_table->setSortingEnabled(false);
     m_table->verticalHeader()->setVisible(false);
     m_table->verticalHeader()->setDefaultSectionSize(28);
     m_table->horizontalHeader()->setHighlightSections(false);
@@ -116,10 +116,15 @@ void MainWindow::buildUi() {
     m_table->setShowGrid(false);
 
     auto* hh = m_table->horizontalHeader();
+    hh->setSectionsClickable(true);
+    hh->setSortIndicatorShown(true);
+    hh->setSortIndicator(PatientTableModel::Col_FamilyName, Qt::AscendingOrder);
+    hh->setSectionResizeMode(PatientTableModel::Col_FamilyName, QHeaderView::Stretch);
+    hh->setSectionResizeMode(PatientTableModel::Col_GivenName,  QHeaderView::ResizeToContents);
     hh->setSectionResizeMode(PatientTableModel::Col_FileNumber, QHeaderView::ResizeToContents);
-    hh->setSectionResizeMode(PatientTableModel::Col_FullName,   QHeaderView::Stretch);
     hh->setSectionResizeMode(PatientTableModel::Col_Phone,      QHeaderView::ResizeToContents);
     hh->setSectionResizeMode(PatientTableModel::Col_Notes,      QHeaderView::Stretch);
+    connect(hh, &QHeaderView::sectionClicked, this, &MainWindow::onHeaderClicked);
 
     connect(m_table, &QTableView::doubleClicked, this, [this](const QModelIndex&){ onEditCurrent(); });
 
@@ -175,8 +180,34 @@ void MainWindow::onSearchChanged(const QString& text) {
     m_searchDebounce.start();
 }
 
+void MainWindow::onHeaderClicked(int section) {
+    if (section != PatientTableModel::Col_FamilyName &&
+        section != PatientTableModel::Col_FileNumber) {
+        return;
+    }
+
+    if (m_sortColumn == section) {
+        m_sortOrder = (m_sortOrder == Qt::AscendingOrder) ? Qt::DescendingOrder : Qt::AscendingOrder;
+    } else {
+        m_sortColumn = section;
+        m_sortOrder = Qt::AscendingOrder;
+    }
+    m_table->horizontalHeader()->setSortIndicator(m_sortColumn, m_sortOrder);
+    refreshTable(m_search->text());
+    selectFirstRow();
+}
+
+PatientRepository::SortField MainWindow::currentSortField() const {
+    if (m_sortColumn == PatientTableModel::Col_FileNumber) {
+        return PatientRepository::SortField::FileNumber;
+    }
+    return PatientRepository::SortField::FamilyName;
+}
+
 void MainWindow::refreshTable(const QString& query) {
-    auto patients = m_repo->search(query, kSearchResultLimit);
+    auto patients = m_repo->search(query, kSearchResultLimit,
+                                   currentSortField(),
+                                   m_sortOrder == Qt::AscendingOrder);
     m_model->setPatients(std::move(patients));
     updateStatus();
 }
@@ -240,7 +271,7 @@ void MainWindow::onDeleteCurrent() {
     const auto reply = QMessageBox::question(this, tr("حذف بیمار"),
         tr("آیا از حذف «%1» (شماره پرونده %2) مطمئن هستید؟\n"
            "بیمار حذف‌شده در سطل بازیافت قابل بازگردانی است.")
-            .arg(p.fullName, PersianText::toPersianDigits(p.fileNumber)),
+            .arg(p.displayName(), PersianText::toPersianDigits(p.fileNumber)),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
 
     if (reply != QMessageBox::Yes) return;
@@ -270,11 +301,13 @@ void MainWindow::onExportCsv() {
     QTextStream ts(&f);
     ts.setEncoding(QStringConverter::Utf8);
     ts.setGenerateByteOrderMark(true);
-    ts << "Patient Name,Case Number,Phone,Notes\n";
+    ts << "Family Name,Given Name,Patient Name,Case Number,Phone,Notes\n";
 
-    auto all = m_repo->search({}, 1000000);
+    auto all = m_repo->search({}, 1000000, PatientRepository::SortField::FamilyName, true);
     for (const auto& p : all) {
-        ts << csvEscape(p.fullName) << ','
+        ts << csvEscape(p.familyName) << ','
+           << csvEscape(p.givenName) << ','
+           << csvEscape(p.displayName()) << ','
            << csvEscape(p.fileNumber) << ','
            << csvEscape(p.phone) << ','
            << csvEscape(p.notes) << '\n';

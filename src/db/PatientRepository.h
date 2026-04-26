@@ -11,6 +11,11 @@ namespace DentalPatients {
 
 class PatientRepository {
 public:
+    enum class SortField {
+        FamilyName,
+        FileNumber,
+    };
+
     explicit PatientRepository(QSqlDatabase db);
 
     // ---- mutations ---------------------------------------------------------
@@ -30,9 +35,12 @@ public:
     std::optional<Patient> findById(qint64 id) const;
     std::optional<Patient> findByFileNumber(const QString& fileNumber) const;
 
-    // search() returns up to `limit` matches sorted by full_name. An empty
-    // query returns the first `limit` patients alphabetically.
-    QVector<Patient> search(const QString& query, int limit = 1000) const;
+    // search() returns up to `limit` matches. Family-name sorting always uses
+    // given name as the tie-breaker.
+    QVector<Patient> search(const QString& query,
+                            int limit = 1000,
+                            SortField sortField = SortField::FamilyName,
+                            bool ascending = true) const;
     QVector<Patient> trash(int limit = 1000) const;
 
     // ---- meta --------------------------------------------------------------

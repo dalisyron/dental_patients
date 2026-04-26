@@ -49,6 +49,14 @@ private slots:
         const QString in = QStringLiteral("  ali   ahmadi  ");
         QCOMPARE(PersianText::normalize(in), QStringLiteral("ali ahmadi"));
     }
+
+    void splitsClinicCsvNameOrder() {
+        const auto p = PersianText::splitFamilyGiven(QStringLiteral("ابراهیمی منش سید صادق"));
+        QCOMPARE(p.familyName, QStringLiteral("ابراهیمی منش سید"));
+        QCOMPARE(p.givenName, QStringLiteral("صادق"));
+        QCOMPARE(PersianText::displayName(p.givenName, p.familyName),
+                 QStringLiteral("صادق ابراهیمی منش سید"));
+    }
 };
 
 QTEST_GUILESS_MAIN(TstPersianText)

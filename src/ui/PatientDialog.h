@@ -35,7 +35,8 @@ private:
     qint64 m_originalId = -1;
     QString m_originalFileNumber;
 
-    QLineEdit* m_name = nullptr;
+    QLineEdit* m_familyName = nullptr;
+    QLineEdit* m_givenName = nullptr;
     QLineEdit* m_fileNumber = nullptr;
     QLineEdit* m_phone = nullptr;
     QPlainTextEdit* m_notes = nullptr;

@@ -36,9 +36,13 @@ void PatientDialog::buildUi() {
     form->setLabelAlignment(Qt::AlignRight);
     form->setSpacing(10);
 
-    m_name = new QLineEdit(m_current.fullName);
-    m_name->setPlaceholderText(tr("مثال: علی محمدی"));
-    form->addRow(tr("نام و نام خانوادگی *"), m_name);
+    m_familyName = new QLineEdit(m_current.familyName);
+    m_familyName->setPlaceholderText(tr("مثال: محمدی"));
+    form->addRow(tr("نام خانوادگی *"), m_familyName);
+
+    m_givenName = new QLineEdit(m_current.givenName);
+    m_givenName->setPlaceholderText(tr("مثال: علی"));
+    form->addRow(tr("نام *"), m_givenName);
 
     m_fileNumber = new QLineEdit(m_current.fileNumber);
     m_fileNumber->setPlaceholderText(tr("مثال: 1234"));
@@ -77,15 +81,20 @@ void PatientDialog::buildUi() {
 
     connect(m_saveBtn, &QPushButton::clicked, this, &PatientDialog::onSave);
     connect(cancel,    &QPushButton::clicked, this, &QDialog::reject);
-    connect(m_name,       &QLineEdit::textChanged, this, &PatientDialog::onValidate);
+    connect(m_familyName, &QLineEdit::textChanged, this, &PatientDialog::onValidate);
+    connect(m_givenName,  &QLineEdit::textChanged, this, &PatientDialog::onValidate);
     connect(m_fileNumber, &QLineEdit::textChanged, this, &PatientDialog::onValidate);
 
     onValidate();
 }
 
 bool PatientDialog::validate(QString* error) const {
-    if (m_name->text().trimmed().isEmpty()) {
-        if (error) *error = tr("نام و نام خانوادگی الزامی است.");
+    if (m_familyName->text().trimmed().isEmpty()) {
+        if (error) *error = tr("نام خانوادگی الزامی است.");
+        return false;
+    }
+    if (m_givenName->text().trimmed().isEmpty()) {
+        if (error) *error = tr("نام الزامی است.");
         return false;
     }
     if (m_fileNumber->text().trimmed().isEmpty()) {
@@ -111,7 +120,8 @@ void PatientDialog::onSave() {
     }
 
     Patient p = m_current;
-    p.fullName   = m_name->text().trimmed();
+    p.familyName = m_familyName->text().trimmed();
+    p.givenName  = m_givenName->text().trimmed();
     p.fileNumber = PersianText::toAsciiDigits(m_fileNumber->text().trimmed());
     p.phone      = PersianText::toAsciiDigits(m_phone->text().trimmed());
     p.notes      = m_notes->toPlainText().trimmed();
@@ -123,7 +133,7 @@ void PatientDialog::onSave() {
         if (existing && existing->id != m_originalId) {
             const auto reply = QMessageBox::question(this, tr("شماره پرونده تکراری"),
                 tr("این شماره پرونده قبلاً برای بیمار «%1» ثبت شده است.\n"
-                   "آیا می‌خواهید با همین شماره پرونده ذخیره شود؟").arg(existing->fullName),
+                   "آیا می‌خواهید با همین شماره پرونده ذخیره شود؟").arg(existing->displayName()),
                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
             if (reply != QMessageBox::Yes) return;
         }

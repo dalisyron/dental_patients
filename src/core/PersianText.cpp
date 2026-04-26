@@ -1,6 +1,7 @@
 #include "core/PersianText.h"
 
 #include <QChar>
+#include <QStringList>
 
 namespace DentalPatients::PersianText {
 
@@ -61,6 +62,22 @@ QString normalize(const QString& input) {
 
 QString normalizeForSearch(const QString& input) {
     return core(input, /*lowercaseAscii=*/true);
+}
+
+NameParts splitFamilyGiven(const QString& fullName) {
+    const QString normalised = normalize(fullName);
+    const QStringList parts = normalised.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (parts.isEmpty()) return {};
+    if (parts.size() == 1) return {{}, parts.first()};
+
+    NameParts out;
+    out.givenName = parts.last();
+    out.familyName = parts.mid(0, parts.size() - 1).join(QLatin1Char(' '));
+    return out;
+}
+
+QString displayName(const QString& givenName, const QString& familyName) {
+    return normalize(givenName + QLatin1Char(' ') + familyName);
 }
 
 QString toPersianDigits(const QString& input) {
