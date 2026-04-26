@@ -29,7 +29,8 @@ QString textForStorage(const QString& value) {
 }
 
 QString nameForStorage(const QString& value) {
-    return PersianText::normalize(value);
+    const QString normalised = PersianText::normalize(value);
+    return normalised.isNull() ? QStringLiteral("") : normalised;
 }
 
 QString searchTextFor(const Patient& p, const QString& fileNumber, const QString& phone, const QString& notes) {

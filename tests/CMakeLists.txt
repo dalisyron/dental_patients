@@ -21,6 +21,7 @@ dp_add_test(tst_persian_text   tst_persian_text.cpp)
 dp_add_test(tst_repository     tst_repository.cpp)
 dp_add_test(tst_csv_importer   tst_csv_importer.cpp)
 dp_add_test(tst_backup_restore tst_backup_restore.cpp)
+dp_add_test(tst_migrations     tst_migrations.cpp)
 
 # Make the seed CSV available next to test binaries.
 configure_file(${CMAKE_SOURCE_DIR}/patient_list_merged_sorted.csv

@@ -65,12 +65,15 @@ QString normalizeForSearch(const QString& input) {
 }
 
 NameParts splitFamilyGiven(const QString& fullName) {
+    NameParts out{QStringLiteral(""), QStringLiteral("")};
     const QString normalised = normalize(fullName);
     const QStringList parts = normalised.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-    if (parts.isEmpty()) return {};
-    if (parts.size() == 1) return {{}, parts.first()};
+    if (parts.isEmpty()) return out;
+    if (parts.size() == 1) {
+        out.givenName = parts.first();
+        return out;
+    }
 
-    NameParts out;
     out.givenName = parts.last();
     out.familyName = parts.mid(0, parts.size() - 1).join(QLatin1Char(' '));
     return out;
