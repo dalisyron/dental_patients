@@ -37,6 +37,7 @@ private:
     void refreshTable(const QString& query = {});
     PatientRepository::SortField currentSortField() const;
     void selectFirstRow();
+    void updatePatientActions();
     void updateStatus();
 
     PatientRepository* m_repo;

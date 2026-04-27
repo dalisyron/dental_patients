@@ -16,13 +16,19 @@
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QIcon>
+#include <QItemSelectionModel>
 #include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPainter>
+#include <QPen>
+#include <QPixmap>
 #include <QPushButton>
 #include <QShortcut>
+#include <QSize>
 #include <QStatusBar>
 #include <QTableView>
 #include <QTextStream>
@@ -38,6 +44,24 @@ namespace DentalPatients {
 namespace {
 
 constexpr int kSearchDebounceMs = 120;     // snappy on a slow CPU
+
+QIcon createAddIcon() {
+    constexpr int kSize = 18;
+    constexpr qreal kInset = 4.5;
+
+    QPixmap pixmap(kSize, kSize);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(QPen(Qt::white, 2.6, Qt::SolidLine, Qt::RoundCap));
+
+    const qreal center = kSize / 2.0;
+    painter.drawLine(QPointF(center, kInset), QPointF(center, kSize - kInset));
+    painter.drawLine(QPointF(kInset, center), QPointF(kSize - kInset, center));
+
+    return QIcon(pixmap);
+}
 
 QString csvEscape(const QString& s) {
     QString out = s;
@@ -87,10 +111,15 @@ void MainWindow::buildUi() {
     m_search->setObjectName(QStringLiteral("searchBox"));
     m_search->setPlaceholderText(tr("جستجوی نام، شماره پرونده، تلفن..."));
     m_search->setClearButtonEnabled(true);
+    m_search->setLayoutDirection(Qt::RightToLeft);
+    m_search->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    m_search->setCursorMoveStyle(Qt::VisualMoveStyle);
     m_search->setMinimumHeight(36);
     connect(m_search, &QLineEdit::textChanged, this, &MainWindow::onSearchChanged);
 
-    auto* addBtn = new QPushButton(tr("➕  افزودن بیمار"));
+    auto* addBtn = new QPushButton(tr("افزودن بیمار"));
+    addBtn->setIcon(createAddIcon());
+    addBtn->setIconSize(QSize(18, 18));
     addBtn->setObjectName(QStringLiteral("primaryButton"));
     addBtn->setMinimumHeight(36);
     connect(addBtn, &QPushButton::clicked, this, &MainWindow::onAddClicked);
@@ -126,6 +155,10 @@ void MainWindow::buildUi() {
     connect(hh, &QHeaderView::sectionClicked, this, &MainWindow::onHeaderClicked);
 
     connect(m_table, &QTableView::doubleClicked, this, [this](const QModelIndex&){ onEditCurrent(); });
+    connect(m_table->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, [this]{ updatePatientActions(); });
+    connect(m_table->selectionModel(), &QItemSelectionModel::currentChanged,
+            this, [this]{ updatePatientActions(); });
 
     root->addWidget(m_table, 1);
 
@@ -159,6 +192,7 @@ void MainWindow::buildMenus() {
     m_actAdd = file->addAction(tr("افزودن بیمار جدید..."), QKeySequence::New, this, &MainWindow::onAddClicked);
     m_actEdit = file->addAction(tr("ویرایش بیمار انتخاب‌شده..."), this, &MainWindow::onEditCurrent);
     m_actDelete = file->addAction(tr("حذف بیمار انتخاب‌شده..."), this, &MainWindow::onDeleteCurrent);
+    updatePatientActions();
     file->addSeparator();
     m_actExport = file->addAction(tr("ذخیره خروجی CSV..."), this, &MainWindow::onExportCsv);
     file->addSeparator();
@@ -208,12 +242,31 @@ void MainWindow::refreshTable(const QString& query) {
                                    currentSortField(),
                                    m_sortOrder == Qt::AscendingOrder);
     m_model->setPatients(std::move(patients));
+    updatePatientActions();
     updateStatus();
 }
 
 void MainWindow::selectFirstRow() {
     if (m_model->patientCount() > 0) {
         m_table->selectRow(0);
+    }
+    updatePatientActions();
+}
+
+void MainWindow::updatePatientActions() {
+    const QModelIndex idx = m_table ? m_table->currentIndex() : QModelIndex{};
+    const bool hasPatient = m_table && m_table->selectionModel()
+                         && m_table->selectionModel()->hasSelection()
+                         && idx.isValid()
+                         && m_model
+                         && idx.row() >= 0
+                         && idx.row() < m_model->patientCount()
+                         && m_model->patientAt(idx.row()).id >= 0;
+    if (m_actEdit) {
+        m_actEdit->setEnabled(hasPatient);
+    }
+    if (m_actDelete) {
+        m_actDelete->setEnabled(hasPatient);
     }
 }
 
@@ -262,13 +315,20 @@ void MainWindow::onDeleteCurrent() {
     const Patient p = m_model->patientAt(idx.row());
     if (p.id < 0) return;
 
-    const auto reply = QMessageBox::question(this, tr("حذف بیمار"),
-        tr("آیا از حذف «%1» (شماره پرونده %2) مطمئن هستید؟\n"
-           "بیمار حذف‌شده در سطل بازیافت قابل بازگردانی است.")
-            .arg(p.displayName(), PersianText::toPersianDigits(p.fileNumber)),
-        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    QMessageBox confirm(this);
+    confirm.setIcon(QMessageBox::Question);
+    confirm.setWindowTitle(tr("حذف بیمار"));
+    confirm.setText(tr("آیا از حذف «%1» (شماره پرونده %2) مطمئن هستید؟\n"
+                       "بیمار حذف‌شده در سطل بازیافت قابل بازگردانی است.")
+                        .arg(p.displayName(), PersianText::toPersianDigits(p.fileNumber)));
+    confirm.setLayoutDirection(Qt::RightToLeft);
+    auto* yesButton = confirm.addButton(tr("بله"), QMessageBox::YesRole);
+    auto* noButton = confirm.addButton(tr("خیر"), QMessageBox::NoRole);
+    confirm.setDefaultButton(noButton);
+    confirm.setEscapeButton(noButton);
+    confirm.exec();
 
-    if (reply != QMessageBox::Yes) return;
+    if (confirm.clickedButton() != yesButton) return;
 
     QString err;
     if (!m_repo->softDelete(p.id, &err)) {
@@ -277,6 +337,7 @@ void MainWindow::onDeleteCurrent() {
         return;
     }
     refreshTable(m_search->text());
+    updatePatientActions();
 }
 
 void MainWindow::onExportCsv() {
