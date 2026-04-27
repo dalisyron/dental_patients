@@ -50,6 +50,8 @@ namespace {
 
 constexpr int kSearchDebounceMs = 120;     // snappy on a slow CPU
 constexpr int kFirstRunTextMaxWidth = 520;
+constexpr int kFirstRunBodyLines = 3;
+constexpr int kFirstRunBodyVerticalPadding = 12;
 
 QString backupFileFilter() {
     return MainWindow::tr("فایل پشتیبان Dental Patients (*.dpbackup)");
@@ -238,9 +240,10 @@ QWidget* MainWindow::buildInitialSetupWidget() {
 
     auto* body = new QLabel(tr("برای شروع، فایل پشتیبان Dental Patients با پسوند .dpbackup را بارگذاری کنید یا پایگاه داده خالی بسازید."));
     body->setAlignment(Qt::AlignCenter);
-    body->setMargin(4);
     body->setWordWrap(true);
     body->setMaximumWidth(kFirstRunTextMaxWidth);
+    body->setMinimumHeight(body->fontMetrics().lineSpacing() * kFirstRunBodyLines
+                           + kFirstRunBodyVerticalPadding);
 
     auto* loadBackup = new QPushButton(tr("بارگذاری فایل پشتیبان (.dpbackup)"));
     loadBackup->setObjectName(QStringLiteral("primaryButton"));
