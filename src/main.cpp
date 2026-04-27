@@ -1,4 +1,5 @@
 #include "Version.h"
+#include "core/SingleInstance.h"
 #include "db/Database.h"
 #include "db/PatientRepository.h"
 #include "ui/MainWindow.h"
@@ -10,6 +11,7 @@
 #include <QIcon>
 #include <QLocale>
 #include <QMessageBox>
+#include <QObject>
 #include <QSize>
 #include <QStringList>
 #include <QTimer>
@@ -114,6 +116,11 @@ int main(int argc, char* argv[]) {
     installPersianFont();
     applyStylesheet(app);
 
+    SingleInstance singleInstance;
+    if (!singleInstance.tryAcquire(QApplication::arguments())) {
+        return 0;
+    }
+
     const QString requestedBackup = startupBackupPath(QApplication::arguments());
     bool requestedBackupAlreadyHandled = false;
 
@@ -169,6 +176,9 @@ int main(int argc, char* argv[]) {
 
     MainWindow w(&repo);
     w.show();
+
+    QObject::connect(&singleInstance, &SingleInstance::secondInstanceLaunched,
+                     &w, &MainWindow::onSecondInstanceLaunched);
 
     if (!requestedBackup.isEmpty() && !requestedBackupAlreadyHandled) {
         QTimer::singleShot(0, &w, [requestedBackup, &w] {

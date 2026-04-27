@@ -625,4 +625,23 @@ void MainWindow::onShowDataLocation() {
     QDesktopServices::openUrl(QUrl::fromLocalFile(Database::defaultDataDir()));
 }
 
+void MainWindow::onSecondInstanceLaunched(const QStringList& args) {
+    setWindowState((windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
+    show();
+    raise();
+    activateWindow();
+
+    QString backupPath;
+    for (int i = 1; i < args.size(); ++i) {
+        const QFileInfo info(args.at(i));
+        if (info.suffix().compare(QStringLiteral("dpbackup"), Qt::CaseInsensitive) == 0) {
+            backupPath = info.absoluteFilePath();
+            break;
+        }
+    }
+    if (!backupPath.isEmpty()) {
+        openBackupFile(backupPath);
+    }
+}
+
 } // namespace DentalPatients

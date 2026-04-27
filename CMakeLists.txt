@@ -34,7 +34,7 @@ if(MSVC)
 endif()
 
 # ---- Qt ---------------------------------------------------------------------
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Sql Test)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Sql Network Test)
 qt_standard_project_setup()
 
 # ---- Generated headers ------------------------------------------------------
@@ -49,6 +49,8 @@ set(APP_SOURCES
     src/main.cpp
     src/core/PersianText.h
     src/core/PersianText.cpp
+    src/core/SingleInstance.h
+    src/core/SingleInstance.cpp
     src/db/Patient.h
     src/db/Database.h
     src/db/Database.cpp
@@ -88,6 +90,7 @@ target_link_libraries(${APP_EXE_NAME} PRIVATE
     Qt6::Gui
     Qt6::Widgets
     Qt6::Sql
+    Qt6::Network
 )
 
 target_compile_definitions(${APP_EXE_NAME} PRIVATE

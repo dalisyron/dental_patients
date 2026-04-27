@@ -22,6 +22,9 @@ public:
     explicit MainWindow(PatientRepository* repo, QWidget* parent = nullptr);
     void openBackupFile(const QString& path);
 
+public slots:
+    void onSecondInstanceLaunched(const QStringList& args);
+
 private slots:
     void onSearchChanged(const QString&);
     void onHeaderClicked(int section);
