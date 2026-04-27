@@ -10,11 +10,43 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QTextBlockFormat>
+#include <QTextCursor>
+#include <QTextDocument>
+#include <QTextOption>
 #include <QVBoxLayout>
 
 #include <utility>
 
 namespace DentalPatients {
+
+namespace {
+
+void configurePersianLineEdit(QLineEdit* field) {
+    field->setLayoutDirection(Qt::RightToLeft);
+    field->setAlignment(Qt::AlignRight | Qt::AlignAbsolute | Qt::AlignVCenter);
+    field->setCursorMoveStyle(Qt::LogicalMoveStyle);
+}
+
+void configurePersianPlainTextEdit(QPlainTextEdit* field) {
+    field->setLayoutDirection(Qt::RightToLeft);
+
+    QTextOption option = field->document()->defaultTextOption();
+    option.setTextDirection(Qt::RightToLeft);
+    option.setAlignment(Qt::AlignRight | Qt::AlignAbsolute);
+    field->document()->setDefaultTextOption(option);
+    field->document()->setDefaultCursorMoveStyle(Qt::LogicalMoveStyle);
+
+    QTextBlockFormat format;
+    format.setLayoutDirection(Qt::RightToLeft);
+    format.setAlignment(Qt::AlignRight | Qt::AlignAbsolute);
+
+    QTextCursor cursor(field->document());
+    cursor.select(QTextCursor::Document);
+    cursor.mergeBlockFormat(format);
+}
+
+} // namespace
 
 PatientDialog::PatientDialog(Mode mode, PatientRepository* repo, Patient initial, QWidget* parent)
     : QDialog(parent), m_mode(mode), m_repo(repo), m_current(std::move(initial)) {
@@ -38,10 +70,12 @@ void PatientDialog::buildUi() {
 
     m_familyName = new QLineEdit(m_current.familyName);
     m_familyName->setPlaceholderText(tr("مثال: محمدی"));
+    configurePersianLineEdit(m_familyName);
     form->addRow(tr("نام خانوادگی *"), m_familyName);
 
     m_givenName = new QLineEdit(m_current.givenName);
     m_givenName->setPlaceholderText(tr("مثال: علی"));
+    configurePersianLineEdit(m_givenName);
     form->addRow(tr("نام *"), m_givenName);
 
     m_fileNumber = new QLineEdit(m_current.fileNumber);
@@ -50,10 +84,12 @@ void PatientDialog::buildUi() {
 
     m_phone = new QLineEdit(m_current.phone);
     m_phone->setPlaceholderText(tr("اختیاری"));
+    configurePersianLineEdit(m_phone);
     form->addRow(tr("تلفن"), m_phone);
 
     m_notes = new QPlainTextEdit(m_current.notes);
     m_notes->setPlaceholderText(tr("اختیاری"));
+    configurePersianPlainTextEdit(m_notes);
     m_notes->setMinimumHeight(160);
     form->addRow(tr("یادداشت"), m_notes);
 
