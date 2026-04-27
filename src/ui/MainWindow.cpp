@@ -238,6 +238,7 @@ QWidget* MainWindow::buildInitialSetupWidget() {
 
     auto* body = new QLabel(tr("برای شروع، فایل پشتیبان Dental Patients با پسوند .dpbackup را بارگذاری کنید یا پایگاه داده خالی بسازید."));
     body->setAlignment(Qt::AlignCenter);
+    body->setMargin(4);
     body->setWordWrap(true);
     body->setMaximumWidth(kFirstRunTextMaxWidth);
 

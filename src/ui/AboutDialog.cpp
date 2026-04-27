@@ -13,7 +13,7 @@ AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent) {
     setWindowTitle(tr("درباره برنامه"));
     setModal(true);
     setLayoutDirection(Qt::RightToLeft);
-    resize(420, 240);
+    resize(420, 260);
 
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(24, 24, 24, 24);
@@ -30,6 +30,10 @@ AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent) {
     auto* version = new QLabel(tr("نسخه %1").arg(QString::fromUtf8(Version::kString)));
     version->setAlignment(Qt::AlignCenter);
     root->addWidget(version);
+
+    auto* creator = new QLabel(tr("ساخته شده توسط: مبین داریوش"));
+    creator->setAlignment(Qt::AlignCenter);
+    root->addWidget(creator);
 
     auto* desc = new QLabel(tr(
         "نرم‌افزار مدیریت پرونده بیماران دندانپزشکی.\n"
