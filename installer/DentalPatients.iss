@@ -75,5 +75,10 @@ Root: HKCR; Subkey: "DentalPatientsBackup\shell\open\command"; ValueType: string
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
+[UninstallDelete]
+; Inno Setup otherwise leaves empty Qt plugin subdirs (platforms, sqldrivers,
+; styles) behind. Safe because patient data lives in {userappdata}, not {app}.
+Type: filesandordirs; Name: "{app}"
+
 ; ---- Important: do NOT include any [UninstallDelete] entry that touches
 ; ---- {userappdata}\DentalPatients. Patient records must survive uninstalls.

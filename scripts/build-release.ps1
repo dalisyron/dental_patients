@@ -12,7 +12,9 @@ $toolPaths = @(
     (Join-Path $env:ProgramFiles 'CMake\bin'),
     (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links'),
     (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages\Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe'),
-    (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6')
+    (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6'),
+    # vcvars64.bat invokes vswhere.exe by name, so the Installer dir must be on PATH.
+    (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer')
 )
 foreach ($p in $toolPaths) {
     if ((Test-Path $p) -and (($env:Path -split ';') -notcontains $p)) {
