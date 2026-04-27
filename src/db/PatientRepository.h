@@ -46,6 +46,9 @@ public:
     // ---- meta --------------------------------------------------------------
     QString meta(const QString& key) const;
     bool    setMeta(const QString& key, const QString& value);
+    bool    isInitialized() const;
+    bool    markInitialized();
+    void    resetDatabase(QSqlDatabase db);
 
 private:
     QSqlDatabase m_db;

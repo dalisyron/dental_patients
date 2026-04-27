@@ -4,6 +4,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QSqlQuery>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -44,6 +45,12 @@ private slots:
         const QString backup = Database::instance().createBackup(&err);
         QVERIFY2(!backup.isEmpty(), qPrintable(err));
         QVERIFY(QFile::exists(backup));
+        QCOMPARE(QFileInfo(backup).suffix(), QStringLiteral("dpbackup"));
+
+        Database::BackupInfo info;
+        QVERIFY2(Database::inspectBackup(backup, &info, &err), qPrintable(err));
+        QCOMPARE(info.patientCount, 1);
+        QVERIFY(info.schemaVersion >= 2);
 
         const auto list = Database::instance().listBackups();
         QVERIFY(list.contains(backup));
@@ -69,6 +76,25 @@ private slots:
         QCOMPARE(repo2.count(), 1);
         auto only = repo2.findByFileNumber(QStringLiteral("1"));
         QVERIFY(only.has_value());
+    }
+
+    void invalidBackupFailsInspectionWithoutClosingLiveDatabase() {
+        PatientRepository repo(Database::instance().sql());
+        Patient p; p.familyName = QStringLiteral("a"); p.givenName = QStringLiteral("a"); p.fileNumber = QStringLiteral("1");
+        QString err;
+        QVERIFY2(repo.insert(p, &err).has_value(), qPrintable(err));
+
+        const QString invalidBackup = m_dir.filePath(QStringLiteral("not-a-backup.dpbackup"));
+        {
+            QFile f(invalidBackup);
+            QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QVERIFY(f.write("not sqlite") > 0);
+        }
+
+        QVERIFY(!Database::inspectBackup(invalidBackup, nullptr, &err));
+        QVERIFY(!Database::instance().restoreFromBackup(invalidBackup, &err));
+        QVERIFY(Database::instance().isOpen());
+        QCOMPARE(repo.count(), 1);
     }
 
     void failedRestoreCopyLeavesLiveDatabaseInPlace() {

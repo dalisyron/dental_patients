@@ -4,7 +4,6 @@ set(CORE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/core/PersianText.cpp
     ${CMAKE_SOURCE_DIR}/src/db/Database.cpp
     ${CMAKE_SOURCE_DIR}/src/db/PatientRepository.cpp
-    ${CMAKE_SOURCE_DIR}/src/db/CsvImporter.cpp
 )
 
 function(dp_add_test name source)
@@ -19,7 +18,6 @@ endfunction()
 
 dp_add_test(tst_persian_text   tst_persian_text.cpp)
 dp_add_test(tst_repository     tst_repository.cpp)
-dp_add_test(tst_csv_importer   tst_csv_importer.cpp)
 dp_add_test(tst_backup_restore tst_backup_restore.cpp)
 dp_add_test(tst_migrations     tst_migrations.cpp)
 
@@ -43,7 +41,3 @@ target_link_libraries(tst_text_fields PRIVATE
     Qt6::Widgets
 )
 add_test(NAME tst_text_fields COMMAND tst_text_fields)
-
-# Make the seed CSV available next to test binaries.
-configure_file(${CMAKE_SOURCE_DIR}/patient_list_merged_sorted.csv
-               ${CMAKE_BINARY_DIR}/patient_list_merged_sorted.csv COPYONLY)

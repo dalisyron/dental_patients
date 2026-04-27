@@ -1,13 +1,9 @@
 #include "Version.h"
 #include "db/Database.h"
 #include "db/PatientRepository.h"
-#include "db/CsvImporter.h"
 #include "ui/MainWindow.h"
 
 #include <QApplication>
-#include <QCoreApplication>
-#include <QDateTime>
-#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QFontDatabase>
@@ -15,8 +11,8 @@
 #include <QLocale>
 #include <QMessageBox>
 #include <QSize>
-#include <QStandardPaths>
 #include <QStringList>
+#include <QTimer>
 
 using namespace DentalPatients;
 
@@ -62,30 +58,42 @@ void setApplicationIcon(QApplication& app) {
     }
 }
 
-bool firstRunCsvImport(PatientRepository& repo) {
-    if (repo.count() > 0) return true;                // not first run
-    if (!repo.meta(QStringLiteral("csv_import_done")).isEmpty()) return true;
-
-    // Look for the seed CSV next to the executable, then in the app bundle.
-    const QStringList candidates = {
-        QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("patient_list_merged_sorted.csv")),
-        QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("../patient_list_merged_sorted.csv")),
-    };
-    QString seed;
-    for (const auto& c : candidates) {
-        if (QFileInfo::exists(c)) { seed = c; break; }
+QString startupBackupPath(const QStringList& args) {
+    for (int i = 1; i < args.size(); ++i) {
+        const QFileInfo info(args.at(i));
+        if (info.suffix().compare(QStringLiteral("dpbackup"), Qt::CaseInsensitive) == 0) {
+            return info.absoluteFilePath();
+        }
     }
-    if (seed.isEmpty()) return true;                  // user has none, that's fine
+    return {};
+}
 
-    auto result = CsvImporter::importFromFile(seed, repo);
-    if (!result.ok) {
-        QMessageBox::warning(nullptr,
-            QObject::tr("خطای ورود اطلاعات"),
-            QObject::tr("ورود فایل CSV اولیه با خطا مواجه شد:\n%1").arg(result.error));
+bool offerRestoreFromSelectedBackup(const QString& backupPath, const QString& openError) {
+    Database::BackupInfo info;
+    QString inspectErr;
+    if (!Database::inspectBackup(backupPath, &info, &inspectErr)) {
+        QMessageBox::critical(nullptr,
+            QObject::tr("فایل پشتیبان نامعتبر"),
+            QObject::tr("پایگاه داده باز نشد و فایل پشتیبان انتخاب‌شده نیز قابل خواندن نیست:\n%1\n\nخطای پایگاه داده:\n%2")
+                .arg(inspectErr, openError));
         return false;
     }
-    repo.setMeta(QStringLiteral("csv_import_done"),
-                 QString::number(QDateTime::currentSecsSinceEpoch()));
+
+    const auto reply = QMessageBox::question(nullptr,
+        QObject::tr("خطای پایگاه داده"),
+        QObject::tr("پایگاه داده آسیب دیده است:\n%1\n\n"
+                    "آیا می‌خواهید اطلاعات از فایل پشتیبان انتخاب‌شده بازگردانی شود؟")
+            .arg(openError),
+        QMessageBox::Yes | QMessageBox::No);
+    if (reply != QMessageBox::Yes) return false;
+
+    QString restoreErr;
+    if (!Database::instance().restoreFromBackup(backupPath, &restoreErr)) {
+        QMessageBox::critical(nullptr,
+            QObject::tr("خطای بازگردانی"),
+            QObject::tr("بازگردانی با خطا مواجه شد:\n%1").arg(restoreErr));
+        return false;
+    }
     return true;
 }
 
@@ -106,47 +114,67 @@ int main(int argc, char* argv[]) {
     installPersianFont();
     applyStylesheet(app);
 
+    const QString requestedBackup = startupBackupPath(QApplication::arguments());
+    bool requestedBackupAlreadyHandled = false;
+
     // ---- Open DB (with auto-restore from latest backup if corrupt) ---------
     QString openErr;
     if (!Database::instance().open(&openErr)) {
-        // Try to restore from the most recent backup.
-        const auto backups = Database::instance().listBackups();
-        if (!backups.isEmpty()) {
-            const auto reply = QMessageBox::question(nullptr,
-                QObject::tr("خطای پایگاه داده"),
-                QObject::tr("پایگاه داده آسیب دیده است:\n%1\n\n"
-                            "آیا مایل به بازگردانی از آخرین پشتیبان (%2) هستید؟")
-                    .arg(openErr, QFileInfo(backups.first()).fileName()),
-                QMessageBox::Yes | QMessageBox::No);
-            if (reply == QMessageBox::Yes) {
-                QString restoreErr;
-                if (!Database::instance().restoreFromBackup(backups.first(), &restoreErr)) {
-                    QMessageBox::critical(nullptr,
-                        QObject::tr("خطای بازگردانی"),
-                        QObject::tr("بازگردانی با خطا مواجه شد:\n%1").arg(restoreErr));
+        if (!requestedBackup.isEmpty()) {
+            if (!offerRestoreFromSelectedBackup(requestedBackup, openErr)) {
+                return 2;
+            }
+            requestedBackupAlreadyHandled = true;
+        } else {
+            // Try to restore from the most recent backup.
+            const auto backups = Database::instance().listBackups();
+            if (!backups.isEmpty()) {
+                const auto reply = QMessageBox::question(nullptr,
+                    QObject::tr("خطای پایگاه داده"),
+                    QObject::tr("پایگاه داده آسیب دیده است:\n%1\n\n"
+                                "آیا مایل به بازگردانی از آخرین پشتیبان (%2) هستید؟")
+                        .arg(openErr, QFileInfo(backups.first()).fileName()),
+                    QMessageBox::Yes | QMessageBox::No);
+                if (reply == QMessageBox::Yes) {
+                    QString restoreErr;
+                    if (!Database::instance().restoreFromBackup(backups.first(), &restoreErr)) {
+                        QMessageBox::critical(nullptr,
+                            QObject::tr("خطای بازگردانی"),
+                            QObject::tr("بازگردانی با خطا مواجه شد:\n%1").arg(restoreErr));
+                        return 2;
+                    }
+                } else {
                     return 2;
                 }
             } else {
+                QMessageBox::critical(nullptr,
+                    QObject::tr("خطای پایگاه داده"),
+                    QObject::tr("بازکردن پایگاه داده ممکن نیست:\n%1").arg(openErr));
                 return 2;
             }
-        } else {
-            QMessageBox::critical(nullptr,
-                QObject::tr("خطای پایگاه داده"),
-                QObject::tr("بازکردن پایگاه داده ممکن نیست:\n%1").arg(openErr));
-            return 2;
         }
     }
 
     PatientRepository repo(Database::instance().sql());
-    firstRunCsvImport(repo);
+    if (requestedBackupAlreadyHandled && !repo.isInitialized()) {
+        repo.markInitialized();
+    }
 
-    // Daily backup after the first-run import, so a fresh install backs up the
-    // seeded patient data instead of an empty database.
-    QString backupErr;
-    Database::instance().backupTodayIfMissing(&backupErr);
+    // Do not back up a newly-created, uninitialized database. After the user
+    // loads a .dpbackup or explicitly starts empty, normal daily backups resume.
+    if (repo.isInitialized()) {
+        QString backupErr;
+        Database::instance().backupTodayIfMissing(&backupErr);
+    }
 
     MainWindow w(&repo);
     w.show();
+
+    if (!requestedBackup.isEmpty() && !requestedBackupAlreadyHandled) {
+        QTimer::singleShot(0, &w, [requestedBackup, &w] {
+            w.openBackupFile(requestedBackup);
+        });
+    }
 
     const int rc = app.exec();
     Database::instance().close();

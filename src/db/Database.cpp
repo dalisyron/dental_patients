@@ -18,6 +18,8 @@ namespace DentalPatients {
 
 namespace {
 QString g_dataDirOverride;
+
+constexpr auto kBackupExtension = "dpbackup";
 } // namespace
 
 Database& Database::instance() {
@@ -314,7 +316,8 @@ QString Database::createBackup(QString* error) {
         return {};
     }
     const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss-zzz"));
-    const QString dest = QDir(backupDir()).filePath(QStringLiteral("patients-%1.db").arg(stamp));
+    const QString dest = QDir(backupDir()).filePath(QStringLiteral("patients-%1.%2")
+                                                        .arg(stamp, QString::fromLatin1(kBackupExtension)));
 
     // Online backup via the SQLite VACUUM INTO statement - safe with WAL,
     // creates a consistent single-file copy without locking writers.
@@ -328,9 +331,72 @@ QString Database::createBackup(QString* error) {
     return dest;
 }
 
-bool Database::restoreFromBackup(const QString& backupPath, QString* error) {
-    if (!QFile::exists(backupPath)) {
+bool Database::inspectBackup(const QString& backupPath, BackupInfo* info, QString* error) {
+    const QFileInfo fileInfo(backupPath);
+    if (!fileInfo.isFile()) {
         if (error) *error = QStringLiteral("backup not found: %1").arg(backupPath);
+        return false;
+    }
+
+    BackupInfo localInfo;
+    QString localError;
+    bool ok = false;
+    const QString connectionName = QStringLiteral("dp_backup_check_%1")
+        .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+        db.setDatabaseName(backupPath);
+        if (!db.open()) {
+            localError = db.lastError().text();
+        } else {
+            QSqlQuery integrity(db);
+            if (!integrity.exec(QStringLiteral("PRAGMA integrity_check;"))) {
+                localError = integrity.lastError().text();
+            } else if (!integrity.next()) {
+                localError = QStringLiteral("integrity_check returned no result");
+            } else {
+                const QString result = integrity.value(0).toString();
+                if (result.compare(QStringLiteral("ok"), Qt::CaseInsensitive) != 0) {
+                    localError = QStringLiteral("integrity_check failed: %1").arg(result);
+                }
+            }
+
+            if (localError.isEmpty()) {
+                QSqlQuery count(db);
+                if (!count.exec(QStringLiteral("SELECT COUNT(*) FROM patients;")) || !count.next()) {
+                    localError = QStringLiteral("not a Dental Patients backup: missing patients table");
+                } else {
+                    localInfo.patientCount = count.value(0).toInt();
+                    ok = true;
+                }
+            }
+
+            if (ok) {
+                QSqlQuery schema(db);
+                if (schema.exec(QStringLiteral("SELECT MAX(version) FROM schema_version;")) && schema.next()) {
+                    localInfo.schemaVersion = schema.value(0).toInt();
+                }
+            }
+        }
+    }
+    QSqlDatabase::removeDatabase(connectionName);
+
+    if (!ok) {
+        if (error) *error = localError.isEmpty()
+            ? QStringLiteral("could not inspect backup")
+            : localError;
+        return false;
+    }
+
+    if (info) *info = localInfo;
+    return true;
+}
+
+bool Database::restoreFromBackup(const QString& backupPath, QString* error) {
+    QString inspectError;
+    if (!inspectBackup(backupPath, nullptr, &inspectError)) {
+        if (error) *error = inspectError;
         return false;
     }
 
@@ -348,6 +414,7 @@ bool Database::restoreFromBackup(const QString& backupPath, QString* error) {
         return false;
     }
 
+    execNoResult(QStringLiteral("PRAGMA wal_checkpoint(TRUNCATE);"), nullptr);
     close();
 
     // Stage the backup first, then move the current file aside only for the final swap.
@@ -386,7 +453,12 @@ bool Database::restoreFromBackup(const QString& backupPath, QString* error) {
 
 QStringList Database::listBackups() const {
     QDir d(backupDir());
-    auto names = d.entryList(QStringList{QStringLiteral("patients-*.db")}, QDir::Files, QDir::Name | QDir::Reversed);
+    auto names = d.entryList(QStringList{
+                                 QStringLiteral("patients-*.dpbackup"),
+                                 QStringLiteral("patients-*.db")
+                             },
+                             QDir::Files,
+                             QDir::Name | QDir::Reversed);
     for (auto& n : names) n = d.filePath(n);
     return names;
 }

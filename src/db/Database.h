@@ -11,6 +11,11 @@ namespace DentalPatients {
 // daily backups with rotation.
 class Database {
 public:
+    struct BackupInfo {
+        int patientCount = 0;
+        int schemaVersion = 0;
+    };
+
     static Database& instance();
 
     // Lifecycle
@@ -27,6 +32,9 @@ public:
     QStringList listBackups() const;
     void    rotateBackups(int keepLast = 30);
     bool    backupTodayIfMissing(QString* error = nullptr);  // called on app start
+    static bool inspectBackup(const QString& backupPath,
+                              BackupInfo* info = nullptr,
+                              QString* error = nullptr);
 
     // Integrity
     bool integrityCheck(QString* error = nullptr);

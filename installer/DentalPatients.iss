@@ -49,6 +49,7 @@ VersionInfoDescription={#AppName} - {#AppNameFa}
 VersionInfoProductName={#AppName}
 CloseApplications=force
 RestartApplications=no
+ChangesAssociations=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -58,12 +59,18 @@ Name: "desktopicon";   Description: "{cm:CreateDesktopIcon}";   GroupDescription
 
 [Files]
 ; Take the entire dist/ folder produced by `windeployqt` (Qt DLLs, plugins,
-; vc_redist runtime, app exe + seed CSV).
+; vc_redist runtime, and app exe).
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\{#AppExeName}"
 Name: "{autodesktop}\{#AppName}";  Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\{#AppExeName}"; Tasks: desktopicon
+
+[Registry]
+Root: HKCR; Subkey: ".dpbackup"; ValueType: string; ValueName: ""; ValueData: "DentalPatientsBackup"; Flags: uninsdeletevalue
+Root: HKCR; Subkey: "DentalPatientsBackup"; ValueType: string; ValueName: ""; ValueData: "Dental Patients Backup"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "DentalPatientsBackup\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppExeName},0"
+Root: HKCR; Subkey: "DentalPatientsBackup\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent

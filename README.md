@@ -14,28 +14,36 @@ A native Windows application for managing dental patient records in Persian.
 2. Click "Install".
 3. Launch from the Start menu or desktop shortcut.
 
-On the first launch the app imports `patient_list_merged_sorted.csv`
-(bundled in the install directory) into the local database. After that the
-CSV is no longer needed - all data lives in `%APPDATA%\DentalPatients\patients.db`.
-Imported names are split into family name and given name using the clinic CSV
-convention: the final token is the given name, and all previous tokens form the
-family name.
+On the first launch the app shows a Persian setup view. Load the clinic's
+`.dpbackup` file to populate the exact patient database, or start with an empty
+database. After setup, all active data lives in
+`%APPDATA%\DentalPatients\patients.db`.
 
 ### Updates
+
 Hand the user a newer `DentalPatients-Setup-<new_version>.exe`. Double-click,
-"Install". The installer detects the existing version (via stable `AppId`),
+"Install". The installer detects the existing version via the stable `AppId`,
 upgrades the binaries in place, and **leaves all patient data untouched**.
 
 ### Backups
-- Automatic: a backup is written to `%APPDATA%\DentalPatients\backups\` on the
-  first launch each day. The 30 most recent backups are kept.
-- Manual: **Tools → ایجاد پشتیبان** in the menu.
-- Restore: if the database is detected as corrupt at startup the app offers
-  one-click restore from the most recent backup.
+
+- Automatic: a `.dpbackup` file is written to
+  `%APPDATA%\DentalPatients\backups\` on the first launch each day after the
+  database has been initialized. The 30 most recent backups are kept.
+- Manual: **Tools -> ایجاد پشتیبان** creates a `.dpbackup` file.
+- Restore: **Tools -> بازگردانی از پشتیبان...** restores from a `.dpbackup`
+  file after confirmation and after creating a safety backup of current data.
+- File association: double-clicking a `.dpbackup` launches the app and opens
+  the same restore confirmation flow.
+- Corruption recovery: if the database is detected as corrupt at startup, the
+  app offers one-click restore from the most recent backup.
+- CSV: CSV export remains available for Excel/manual inspection, but CSV is not
+  used for first-run population or restore.
 
 ### Soft delete
+
 Deleted patients move to a recycle-bin table (`patients_trash`) and can be
-restored from **Tools → سطل بازیافت** until purged.
+restored from **Tools -> سطل بازیافت** until purged.
 
 ## Developer setup
 
@@ -53,11 +61,13 @@ scripts\build-release.ps1
 ```
 
 After `build-release.ps1` the installer is at:
-```
+
+```text
 installer\Output\DentalPatients-Setup-<version>.exe
 ```
 
 ### Bumping the version
+
 1. Edit `project(DentalPatients VERSION X.Y.Z ...)` in `CMakeLists.txt`.
 2. Re-run `scripts\build-release.ps1`. The installer filename, the .exe's
    resource version, and the in-app About dialog all read from the same
@@ -65,24 +75,24 @@ installer\Output\DentalPatients-Setup-<version>.exe
 
 ## Layout
 
-```
+```text
 .
-├── CMakeLists.txt            # build entrypoint (sets version + applies opts)
-├── src/
-│   ├── main.cpp
-│   ├── core/PersianText.*    # Persian/Arabic normalisation + digit conversion
-│   ├── db/                   # SQLite schema, repository, CSV importer
-│   └── ui/                   # MainWindow + dialogs + table model
-├── tests/                    # Qt Test units
-├── assets/
-│   ├── fonts/Vazirmatn-*.ttf # bundled Persian font (SIL OFL)
-│   ├── icons/app.rc          # Windows .exe metadata
-│   └── styles/app.qss        # modern light theme
-├── installer/DentalPatients.iss   # Inno Setup script
-└── scripts/
-    ├── setup-windows.ps1     # one-shot dev environment install
-    ├── run-tests.ps1         # build + ctest
-    └── build-release.ps1     # build + windeployqt + Inno Setup
+|-- CMakeLists.txt                 # build entrypoint
+|-- src/
+|   |-- main.cpp
+|   |-- core/PersianText.*         # Persian/Arabic normalisation
+|   |-- db/                        # SQLite schema, repository, backups
+|   `-- ui/                        # MainWindow + dialogs + table model
+|-- tests/                         # Qt Test units
+|-- assets/
+|   |-- fonts/Vazirmatn-*.ttf      # bundled Persian font (SIL OFL)
+|   |-- icons/app.rc               # Windows .exe metadata
+|   `-- styles/app.qss             # light theme
+|-- installer/DentalPatients.iss   # Inno Setup script
+`-- scripts/
+    |-- setup-windows.ps1          # one-shot dev environment install
+    |-- run-tests.ps1              # build + ctest
+    `-- build-release.ps1          # build + windeployqt + Inno Setup
 ```
 
 ## Robustness guarantees
@@ -91,10 +101,12 @@ installer\Output\DentalPatients-Setup-<version>.exe
   crashes; only an OS-level crash can lose the most recent unflushed write.
 - All multi-step writes wrapped in transactions.
 - `PRAGMA integrity_check` on every startup; auto-restore prompt if it fails.
+- `.dpbackup` is the canonical data transfer and restore format.
 - Daily backup with rotation (last 30 kept).
-- Soft delete: removed records moved to `patients_trash`, restorable from UI.
-- Legacy CSV duplicate file numbers are preserved; the UI warns before creating
-  a new duplicate.
+- Restore validates the selected backup and stages it before replacing the
+  current database.
+- Soft delete: removed records are moved to `patients_trash`, restorable from
+  UI.
 - Patient names are stored as separate family/given-name fields. Sorting is
   limited to family name (with given-name tie-break) and file number.
 - Patient data lives in `%APPDATA%`, never inside the install dir, so an

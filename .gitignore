@@ -6,7 +6,12 @@
 .vs/
 .vscode/
 .idea/
-.claude/
+.claude/*
+!.claude/commands/
+!.claude/commands/**
+!.claude/skills/
+!.claude/skills/**
+.claude/settings.local.json
 CMakeUserPresets.json
 CMakeFiles/
 CMakeCache.txt

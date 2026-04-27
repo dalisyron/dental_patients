@@ -349,4 +349,19 @@ bool PatientRepository::setMeta(const QString& key, const QString& value) {
     return q.exec();
 }
 
+bool PatientRepository::isInitialized() const {
+    return count() > 0
+        || !meta(QStringLiteral("app_initialized")).isEmpty()
+        || !meta(QStringLiteral("csv_import_done")).isEmpty();
+}
+
+bool PatientRepository::markInitialized() {
+    return setMeta(QStringLiteral("app_initialized"),
+                   QString::number(QDateTime::currentSecsSinceEpoch()));
+}
+
+void PatientRepository::resetDatabase(QSqlDatabase db) {
+    m_db = std::move(db);
+}
+
 } // namespace DentalPatients

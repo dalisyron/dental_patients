@@ -54,8 +54,6 @@ set(APP_SOURCES
     src/db/Database.cpp
     src/db/PatientRepository.h
     src/db/PatientRepository.cpp
-    src/db/CsvImporter.h
-    src/db/CsvImporter.cpp
     src/ui/MainWindow.h
     src/ui/MainWindow.cpp
     src/ui/AnchoredPlaceholderPlainTextEdit.h
@@ -103,10 +101,8 @@ set_target_properties(${APP_EXE_NAME} PROPERTIES
     OUTPUT_NAME "DentalPatients"
 )
 
-# ---- Bundle CSV seed data next to the binary in the install dir -------------
+# ---- Install ----------------------------------------------------------------
 install(TARGETS ${APP_EXE_NAME} DESTINATION .)
-install(FILES "${CMAKE_SOURCE_DIR}/patient_list_merged_sorted.csv"
-        DESTINATION . OPTIONAL)
 
 # ---- Tests ------------------------------------------------------------------
 option(DENTAL_BUILD_TESTS "Build unit tests" ON)
@@ -124,9 +120,6 @@ if(WIN32)
             COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/dist"
             COMMAND ${CMAKE_COMMAND} -E copy
                     "$<TARGET_FILE:${APP_EXE_NAME}>"
-                    "${CMAKE_BINARY_DIR}/dist/"
-            COMMAND ${CMAKE_COMMAND} -E copy
-                    "${CMAKE_SOURCE_DIR}/patient_list_merged_sorted.csv"
                     "${CMAKE_BINARY_DIR}/dist/"
             COMMAND ${WINDEPLOYQT_EXE}
                     --release

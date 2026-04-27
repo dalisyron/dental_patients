@@ -197,6 +197,13 @@ private slots:
         QVERIFY(repo.setMeta(QStringLiteral("k"), QStringLiteral("v2")));
         QCOMPARE(repo.meta(QStringLiteral("k")), QStringLiteral("v2"));
     }
+
+    void initializationState() {
+        PatientRepository repo(Database::instance().sql());
+        QVERIFY(!repo.isInitialized());
+        QVERIFY(repo.markInitialized());
+        QVERIFY(repo.isInitialized());
+    }
 };
 
 QTEST_GUILESS_MAIN(TstRepository)
