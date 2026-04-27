@@ -112,8 +112,8 @@ void MainWindow::buildUi() {
     m_search->setPlaceholderText(tr("جستجوی نام، شماره پرونده، تلفن..."));
     m_search->setClearButtonEnabled(true);
     m_search->setLayoutDirection(Qt::RightToLeft);
-    m_search->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    m_search->setCursorMoveStyle(Qt::VisualMoveStyle);
+    m_search->setAlignment(Qt::AlignLeading | Qt::AlignVCenter);
+    m_search->setCursorMoveStyle(Qt::LogicalMoveStyle);
     m_search->setMinimumHeight(36);
     connect(m_search, &QLineEdit::textChanged, this, &MainWindow::onSearchChanged);
 
