@@ -1,4 +1,4 @@
-find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Test Widgets)
 
 set(CORE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/core/PersianText.cpp
@@ -22,6 +22,27 @@ dp_add_test(tst_repository     tst_repository.cpp)
 dp_add_test(tst_csv_importer   tst_csv_importer.cpp)
 dp_add_test(tst_backup_restore tst_backup_restore.cpp)
 dp_add_test(tst_migrations     tst_migrations.cpp)
+
+qt_add_executable(tst_text_fields
+    tst_text_fields.cpp
+    ${CORE_SOURCES}
+    ${CMAKE_SOURCE_DIR}/src/ui/AnchoredPlaceholderPlainTextEdit.h
+    ${CMAKE_SOURCE_DIR}/src/ui/AnchoredPlaceholderPlainTextEdit.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/PatientDialog.h
+    ${CMAKE_SOURCE_DIR}/src/ui/PatientDialog.cpp
+)
+target_include_directories(tst_text_fields PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_BINARY_DIR}/generated
+)
+target_link_libraries(tst_text_fields PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Sql
+    Qt6::Test
+    Qt6::Widgets
+)
+add_test(NAME tst_text_fields COMMAND tst_text_fields)
 
 # Make the seed CSV available next to test binaries.
 configure_file(${CMAKE_SOURCE_DIR}/patient_list_merged_sorted.csv

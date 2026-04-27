@@ -2,6 +2,7 @@
 
 #include "core/PersianText.h"
 #include "db/PatientRepository.h"
+#include "ui/AnchoredPlaceholderPlainTextEdit.h"
 
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -25,6 +26,12 @@ namespace {
 void configurePersianLineEdit(QLineEdit* field) {
     field->setLayoutDirection(Qt::RightToLeft);
     field->setAlignment(Qt::AlignRight | Qt::AlignAbsolute | Qt::AlignVCenter);
+    field->setCursorMoveStyle(Qt::LogicalMoveStyle);
+}
+
+void configureLatinLineEdit(QLineEdit* field) {
+    field->setLayoutDirection(Qt::LeftToRight);
+    field->setAlignment(Qt::AlignLeft | Qt::AlignAbsolute | Qt::AlignVCenter);
     field->setCursorMoveStyle(Qt::LogicalMoveStyle);
 }
 
@@ -80,6 +87,7 @@ void PatientDialog::buildUi() {
 
     m_fileNumber = new QLineEdit(m_current.fileNumber);
     m_fileNumber->setPlaceholderText(tr("مثال: 1234"));
+    configureLatinLineEdit(m_fileNumber);
     form->addRow(tr("شماره پرونده *"), m_fileNumber);
 
     m_phone = new QLineEdit(m_current.phone);
@@ -87,8 +95,9 @@ void PatientDialog::buildUi() {
     configurePersianLineEdit(m_phone);
     form->addRow(tr("تلفن"), m_phone);
 
-    m_notes = new QPlainTextEdit(m_current.notes);
-    m_notes->setPlaceholderText(tr("اختیاری"));
+    auto* notes = new AnchoredPlaceholderPlainTextEdit(m_current.notes);
+    notes->setAnchoredPlaceholderText(tr("اختیاری"));
+    m_notes = notes;
     configurePersianPlainTextEdit(m_notes);
     m_notes->setMinimumHeight(160);
     form->addRow(tr("یادداشت"), m_notes);

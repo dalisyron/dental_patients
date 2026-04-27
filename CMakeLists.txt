@@ -58,6 +58,8 @@ set(APP_SOURCES
     src/db/CsvImporter.cpp
     src/ui/MainWindow.h
     src/ui/MainWindow.cpp
+    src/ui/AnchoredPlaceholderPlainTextEdit.h
+    src/ui/AnchoredPlaceholderPlainTextEdit.cpp
     src/ui/PatientTableModel.h
     src/ui/PatientTableModel.cpp
     src/ui/PatientDialog.h
