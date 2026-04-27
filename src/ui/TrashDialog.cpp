@@ -39,7 +39,14 @@ void TrashDialog::buildUi() {
     m_table->setSelectionMode(QAbstractItemView::SingleSelection);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->verticalHeader()->setVisible(false);
-    m_table->horizontalHeader()->setStretchLastSection(true);
+    auto* header = m_table->horizontalHeader();
+    header->setHighlightSections(false);
+    header->setStretchLastSection(false);
+    header->setSectionResizeMode(0, QHeaderView::Stretch);
+    header->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    header->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    header->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+    header->setSectionResizeMode(4, QHeaderView::Stretch);
     root->addWidget(m_table, 1);
 
     auto* buttons = new QHBoxLayout;
@@ -66,7 +73,6 @@ void TrashDialog::refresh() {
         m_table->setItem(i, 3, new QTableWidgetItem(PersianText::toPersianDigits(p.phone)));
         m_table->setItem(i, 4, new QTableWidgetItem(p.notes));
     }
-    m_table->resizeColumnsToContents();
 }
 
 void TrashDialog::onRestore() {

@@ -38,7 +38,6 @@ namespace DentalPatients {
 namespace {
 
 constexpr int kSearchDebounceMs = 120;     // snappy on a slow CPU
-constexpr int kSearchResultLimit = 1000;
 
 QString csvEscape(const QString& s) {
     QString out = s;
@@ -205,7 +204,7 @@ PatientRepository::SortField MainWindow::currentSortField() const {
 }
 
 void MainWindow::refreshTable(const QString& query) {
-    auto patients = m_repo->search(query, kSearchResultLimit,
+    auto patients = m_repo->search(query, m_repo->count(),
                                    currentSortField(),
                                    m_sortOrder == Qt::AscendingOrder);
     m_model->setPatients(std::move(patients));
@@ -221,14 +220,9 @@ void MainWindow::selectFirstRow() {
 void MainWindow::updateStatus() {
     const int total = m_repo->count();
     const int shown = m_model->patientCount();
-    QString msg;
-    if (shown >= total) {
-        msg = tr("مجموع بیماران: %1").arg(PersianText::toPersianDigits(QString::number(total)));
-    } else {
-        msg = tr("نمایش %1 از %2 بیمار")
-                  .arg(PersianText::toPersianDigits(QString::number(shown)),
-                       PersianText::toPersianDigits(QString::number(total)));
-    }
+    const QString msg = tr("نمایش %1 از %2 بیمار")
+                            .arg(PersianText::toPersianDigits(QString::number(shown)),
+                                 PersianText::toPersianDigits(QString::number(total)));
     m_statusLabel->setText(msg);
 }
 

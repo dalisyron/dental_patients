@@ -24,6 +24,13 @@ scripts\build-release.ps1     # release build + windeployqt + installer
 
 `build-release.ps1` produces `installer\Output\DentalPatients-Setup-<version>.exe`.
 
+For agent-driven delivery, use `docs\RELEASE_GUIDELINE.md` and the short
+phrases defined in the repo-root `AGENTS.md`:
+
+- `ship the update`
+- `publish the release`
+- `install locally`
+
 ## Releasing
 
 1. Bump `project(DentalPatients VERSION X.Y.Z ...)` in `CMakeLists.txt`.
