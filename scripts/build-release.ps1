@@ -67,6 +67,12 @@ if ($LASTEXITCODE -ne 0) { throw "build failed" }
 & cmake --build $buildDir --target deploy
 if ($LASTEXITCODE -ne 0) { throw "deploy failed" }
 
+$distDir = Join-Path $buildDir 'dist'
+$vcRedist = Join-Path $distDir 'vc_redist.x64.exe'
+if (-not (Test-Path $vcRedist)) {
+    throw "Visual C++ runtime redistributable missing from deployed files: $vcRedist"
+}
+
 # 5. Build installer.
 $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
 if (-not $iscc) {
@@ -84,7 +90,6 @@ if ($cmake -notmatch 'project\(DentalPatients[\s\S]*?VERSION\s+(\d+\.\d+\.\d+)')
 }
 $version = $matches[1]
 
-$distDir = Join-Path $buildDir 'dist'
 & $iscc "/DAppVersion=$version" "/DSourceDir=$distDir" (Join-Path $repoRoot 'installer\DentalPatients.iss')
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
 

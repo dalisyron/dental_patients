@@ -73,6 +73,7 @@ Root: HKCR; Subkey: "DentalPatientsBackup\DefaultIcon"; ValueType: string; Value
 Root: HKCR; Subkey: "DentalPatientsBackup\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
 
 [Run]
+Filename: "{app}\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing Microsoft Visual C++ Runtime..."; Flags: waituntilterminated skipifdoesntexist
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
