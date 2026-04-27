@@ -57,6 +57,26 @@ void configurePersianPlainTextEdit(QPlainTextEdit* field) {
     cursor.mergeBlockFormat(format);
 }
 
+void showMessage(QWidget* parent, QMessageBox::Icon icon, const QString& title, const QString& text) {
+    QMessageBox box(parent);
+    box.setIcon(icon);
+    box.setLayoutDirection(Qt::RightToLeft);
+    box.setWindowTitle(title);
+    box.setText(text);
+    auto* okButton = box.addButton(PatientDialog::tr("تأیید"), QMessageBox::AcceptRole);
+    box.setDefaultButton(okButton);
+    box.setEscapeButton(okButton);
+    box.exec();
+}
+
+void showWarning(QWidget* parent, const QString& title, const QString& text) {
+    showMessage(parent, QMessageBox::Warning, title, text);
+}
+
+void showCritical(QWidget* parent, const QString& title, const QString& text) {
+    showMessage(parent, QMessageBox::Critical, title, text);
+}
+
 } // namespace
 
 PatientDialog::PatientDialog(Mode mode, PatientRepository* repo, Patient initial, QWidget* parent)
@@ -229,7 +249,7 @@ bool PatientDialog::assignNextFileNumber(bool showError) {
     if (!nextFileNumber) {
         updateAutoFileNumberHint({});
         if (showError) {
-            QMessageBox::critical(this, tr("خطای پایگاه داده"),
+            showCritical(this, tr("خطای پایگاه داده"),
                 tr("محاسبه شماره پرونده آزاد با خطا مواجه شد:\n%1").arg(opErr));
         }
         return false;
@@ -287,7 +307,7 @@ void PatientDialog::onSave() {
 
     QString err;
     if (!validate(&err)) {
-        QMessageBox::warning(this, tr("خطا"), err);
+        showWarning(this, tr("خطا"), err);
         return;
     }
 
@@ -320,7 +340,7 @@ void PatientDialog::onSave() {
         ok = m_repo->update(p, &opErr);
     }
     if (!ok) {
-        QMessageBox::critical(this, tr("خطای پایگاه داده"),
+        showCritical(this, tr("خطای پایگاه داده"),
             tr("ذخیره با خطا مواجه شد:\n%1").arg(opErr));
         return;
     }

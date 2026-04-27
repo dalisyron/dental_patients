@@ -2,6 +2,8 @@
 
 #include "Version.h"
 
+#include <QFrame>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -9,11 +11,31 @@
 
 namespace DentalPatients {
 
+namespace {
+
+QLabel* shortcutKeyLabel(const QString& text) {
+    auto* label = new QLabel(text);
+    label->setObjectName(QStringLiteral("shortcutKeyLabel"));
+    label->setLayoutDirection(Qt::LeftToRight);
+    label->setAlignment(Qt::AlignCenter);
+    label->setMinimumWidth(88);
+    return label;
+}
+
+void addShortcutRow(QGridLayout* layout, int row, const QString& action, const QString& shortcut) {
+    auto* actionLabel = new QLabel(action);
+    actionLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    layout->addWidget(actionLabel, row, 0);
+    layout->addWidget(shortcutKeyLabel(shortcut), row, 1);
+}
+
+} // namespace
+
 AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent) {
     setWindowTitle(tr("درباره برنامه"));
     setModal(true);
     setLayoutDirection(Qt::RightToLeft);
-    resize(420, 260);
+    resize(480, 430);
 
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(24, 24, 24, 24);
@@ -41,6 +63,33 @@ AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent) {
     desc->setWordWrap(true);
     desc->setAlignment(Qt::AlignCenter);
     root->addWidget(desc);
+
+    auto* shortcutsFrame = new QFrame;
+    shortcutsFrame->setObjectName(QStringLiteral("shortcutsFrame"));
+    auto* shortcutsLayout = new QVBoxLayout(shortcutsFrame);
+    shortcutsLayout->setContentsMargins(14, 12, 14, 12);
+    shortcutsLayout->setSpacing(10);
+
+    auto* shortcutsTitle = new QLabel(tr("میانبرهای صفحه‌کلید"));
+    QFont titleFont = shortcutsTitle->font();
+    titleFont.setBold(true);
+    shortcutsTitle->setFont(titleFont);
+    shortcutsTitle->setAlignment(Qt::AlignRight);
+    shortcutsLayout->addWidget(shortcutsTitle);
+
+    auto* shortcutsGrid = new QGridLayout;
+    shortcutsGrid->setContentsMargins(0, 0, 0, 0);
+    shortcutsGrid->setHorizontalSpacing(18);
+    shortcutsGrid->setVerticalSpacing(8);
+    shortcutsGrid->setColumnStretch(0, 1);
+    shortcutsGrid->setColumnStretch(1, 0);
+
+    addShortcutRow(shortcutsGrid, 0, tr("افزودن بیمار جدید"), QStringLiteral("Ctrl+N"));
+    addShortcutRow(shortcutsGrid, 1, tr("ویرایش بیمار انتخاب‌شده"), QStringLiteral("F2 / Enter"));
+    addShortcutRow(shortcutsGrid, 2, tr("حذف بیمار انتخاب‌شده"), QStringLiteral("Delete"));
+    addShortcutRow(shortcutsGrid, 3, tr("رفتن به جستجو"), QStringLiteral("Ctrl+F"));
+    shortcutsLayout->addLayout(shortcutsGrid);
+    root->addWidget(shortcutsFrame);
 
     root->addStretch(1);
 

@@ -12,9 +12,11 @@
 #include <QLocale>
 #include <QMessageBox>
 #include <QObject>
+#include <QPushButton>
 #include <QSize>
 #include <QStringList>
 #include <QTimer>
+#include <QWidget>
 
 using namespace DentalPatients;
 
@@ -70,11 +72,23 @@ QString startupBackupPath(const QStringList& args) {
     return {};
 }
 
+void showCritical(QWidget* parent, const QString& title, const QString& text) {
+    QMessageBox box(parent);
+    box.setIcon(QMessageBox::Critical);
+    box.setLayoutDirection(Qt::RightToLeft);
+    box.setWindowTitle(title);
+    box.setText(text);
+    auto* okButton = box.addButton(QObject::tr("تأیید"), QMessageBox::AcceptRole);
+    box.setDefaultButton(okButton);
+    box.setEscapeButton(okButton);
+    box.exec();
+}
+
 bool offerRestoreFromSelectedBackup(const QString& backupPath, const QString& openError) {
     Database::BackupInfo info;
     QString inspectErr;
     if (!Database::inspectBackup(backupPath, &info, &inspectErr)) {
-        QMessageBox::critical(nullptr,
+        showCritical(nullptr,
             QObject::tr("فایل پشتیبان نامعتبر"),
             QObject::tr("پایگاه داده باز نشد و فایل پشتیبان انتخاب‌شده نیز قابل خواندن نیست:\n%1\n\nخطای پایگاه داده:\n%2")
                 .arg(inspectErr, openError));
@@ -91,7 +105,7 @@ bool offerRestoreFromSelectedBackup(const QString& backupPath, const QString& op
 
     QString restoreErr;
     if (!Database::instance().restoreFromBackup(backupPath, &restoreErr)) {
-        QMessageBox::critical(nullptr,
+        showCritical(nullptr,
             QObject::tr("خطای بازگردانی"),
             QObject::tr("بازگردانی با خطا مواجه شد:\n%1").arg(restoreErr));
         return false;
@@ -145,7 +159,7 @@ int main(int argc, char* argv[]) {
                 if (reply == QMessageBox::Yes) {
                     QString restoreErr;
                     if (!Database::instance().restoreFromBackup(backups.first(), &restoreErr)) {
-                        QMessageBox::critical(nullptr,
+                        showCritical(nullptr,
                             QObject::tr("خطای بازگردانی"),
                             QObject::tr("بازگردانی با خطا مواجه شد:\n%1").arg(restoreErr));
                         return 2;
@@ -154,7 +168,7 @@ int main(int argc, char* argv[]) {
                     return 2;
                 }
             } else {
-                QMessageBox::critical(nullptr,
+                showCritical(nullptr,
                     QObject::tr("خطای پایگاه داده"),
                     QObject::tr("بازکردن پایگاه داده ممکن نیست:\n%1").arg(openErr));
                 return 2;

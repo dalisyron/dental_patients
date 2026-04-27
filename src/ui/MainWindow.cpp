@@ -99,6 +99,30 @@ PatientDialog::Field dialogFieldForColumn(int column) {
     }
 }
 
+void showMessage(QWidget* parent, QMessageBox::Icon icon, const QString& title, const QString& text) {
+    QMessageBox box(parent);
+    box.setIcon(icon);
+    box.setLayoutDirection(Qt::RightToLeft);
+    box.setWindowTitle(title);
+    box.setText(text);
+    auto* okButton = box.addButton(MainWindow::tr("تأیید"), QMessageBox::AcceptRole);
+    box.setDefaultButton(okButton);
+    box.setEscapeButton(okButton);
+    box.exec();
+}
+
+void showInformation(QWidget* parent, const QString& title, const QString& text) {
+    showMessage(parent, QMessageBox::Information, title, text);
+}
+
+void showWarning(QWidget* parent, const QString& title, const QString& text) {
+    showMessage(parent, QMessageBox::Warning, title, text);
+}
+
+void showCritical(QWidget* parent, const QString& title, const QString& text) {
+    showMessage(parent, QMessageBox::Critical, title, text);
+}
+
 } // namespace
 
 MainWindow::MainWindow(PatientRepository* repo, QWidget* parent)
@@ -211,12 +235,8 @@ void MainWindow::buildUi() {
             onEditCurrent();
         }
     });
-    auto* delShortcut = new QShortcut(QKeySequence(Qt::Key_Delete), m_table);
-    connect(delShortcut, &QShortcut::activated, this, &MainWindow::onDeleteCurrent);
     auto* findShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_F), this);
     connect(findShortcut, &QShortcut::activated, this, [this]{ m_search->setFocus(); m_search->selectAll(); });
-    auto* newShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_N), this);
-    connect(newShortcut, &QShortcut::activated, this, &MainWindow::onAddClicked);
 }
 
 QWidget* MainWindow::buildInitialSetupWidget() {
@@ -271,8 +291,18 @@ void MainWindow::buildMenus() {
     auto* file = menuBar()->addMenu(tr("&پرونده"));
 
     m_actAdd = file->addAction(tr("افزودن بیمار جدید..."), QKeySequence::New, this, &MainWindow::onAddClicked);
+    m_actAdd->setShortcutContext(Qt::WindowShortcut);
+    addAction(m_actAdd);
     m_actEdit = file->addAction(tr("ویرایش بیمار انتخاب‌شده..."), this, &MainWindow::onEditCurrent);
+    m_actEdit->setShortcut(QKeySequence(Qt::Key_F2));
+    m_actEdit->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     m_actDelete = file->addAction(tr("حذف بیمار انتخاب‌شده..."), this, &MainWindow::onDeleteCurrent);
+    m_actDelete->setShortcut(QKeySequence(Qt::Key_Delete));
+    m_actDelete->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+    if (m_table) {
+        m_table->addAction(m_actEdit);
+        m_table->addAction(m_actDelete);
+    }
     updatePatientActions();
     file->addSeparator();
     m_actExport = file->addAction(tr("ذخیره خروجی CSV..."), this, &MainWindow::onExportCsv);
@@ -446,7 +476,7 @@ void MainWindow::onDeleteCurrent() {
 
     QString err;
     if (!m_repo->softDelete(p.id, &err)) {
-        QMessageBox::critical(this, tr("خطا"),
+        showCritical(this, tr("خطا"),
             tr("حذف با خطا مواجه شد:\n%1").arg(err));
         return;
     }
@@ -463,7 +493,7 @@ void MainWindow::onExportCsv() {
 
     QFile f(path);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        QMessageBox::critical(this, tr("خطا"),
+        showCritical(this, tr("خطا"),
             tr("نتوانستم فایل را برای نوشتن باز کنم:\n%1").arg(f.errorString()));
         return;
     }
@@ -486,7 +516,7 @@ void MainWindow::onExportCsv() {
         const QString detail = f.errorString();
         f.close();
         QFile::remove(path);
-        QMessageBox::critical(this, tr("خطا"),
+        showCritical(this, tr("خطا"),
             tr("ذخیره خروجی با خطا مواجه شد:\n%1").arg(detail));
         return;
     }
@@ -494,11 +524,11 @@ void MainWindow::onExportCsv() {
     if (f.error() != QFileDevice::NoError) {
         const QString detail = f.errorString();
         QFile::remove(path);
-        QMessageBox::critical(this, tr("خطا"),
+        showCritical(this, tr("خطا"),
             tr("ذخیره خروجی با خطا مواجه شد:\n%1").arg(detail));
         return;
     }
-    QMessageBox::information(this, tr("ذخیره موفق"),
+    showInformation(this, tr("ذخیره موفق"),
         tr("%1 بیمار در فایل ذخیره شد.").arg(PersianText::toPersianDigits(QString::number(all.size()))));
 }
 
@@ -506,12 +536,12 @@ void MainWindow::onBackupNow() {
     QString err;
     const QString path = Database::instance().createBackup(&err);
     if (path.isEmpty()) {
-        QMessageBox::critical(this, tr("خطا"),
+        showCritical(this, tr("خطا"),
             tr("ایجاد پشتیبان با خطا مواجه شد:\n%1").arg(err));
         return;
     }
     Database::instance().rotateBackups(30);
-    QMessageBox::information(this, tr("پشتیبان"),
+    showInformation(this, tr("پشتیبان"),
         tr("پشتیبان جدید ایجاد شد:\n%1").arg(path));
 }
 
@@ -535,7 +565,7 @@ void MainWindow::onLoadInitialBackup() {
 
 void MainWindow::onStartEmptyDatabase() {
     if (!m_repo->markInitialized()) {
-        QMessageBox::critical(this, tr("خطا"),
+        showCritical(this, tr("خطا"),
             tr("ثبت راه‌اندازی اولیه با خطا مواجه شد."));
         return;
     }
@@ -552,7 +582,7 @@ bool MainWindow::restoreFromBackupFile(const QString& path, bool initialLoad) {
     Database::BackupInfo info;
     QString inspectErr;
     if (!Database::inspectBackup(path, &info, &inspectErr)) {
-        QMessageBox::critical(this, tr("فایل پشتیبان نامعتبر"),
+        showCritical(this, tr("فایل پشتیبان نامعتبر"),
             tr("این فایل پشتیبان قابل خواندن نیست:\n%1").arg(inspectErr));
         return false;
     }
@@ -581,7 +611,7 @@ bool MainWindow::restoreFromBackupFile(const QString& path, bool initialLoad) {
         QString backupErr;
         const QString safetyBackup = Database::instance().createBackup(&backupErr);
         if (safetyBackup.isEmpty()) {
-            QMessageBox::critical(this, tr("خطا"),
+            showCritical(this, tr("خطا"),
                 tr("پیش از بازگردانی، ایجاد پشتیبان ایمن با خطا مواجه شد:\n%1").arg(backupErr));
             return false;
         }
@@ -596,19 +626,19 @@ bool MainWindow::restoreFromBackupFile(const QString& path, bool initialLoad) {
         if (Database::instance().isOpen()) {
             m_repo->resetDatabase(Database::instance().sql());
         }
-        QMessageBox::critical(this, tr("خطای بازگردانی"),
+        showCritical(this, tr("خطای بازگردانی"),
             tr("بازگردانی پشتیبان با خطا مواجه شد:\n%1").arg(restoreErr));
         return false;
     }
 
     m_repo->resetDatabase(Database::instance().sql());
     if (!m_repo->markInitialized()) {
-        QMessageBox::warning(this, tr("هشدار"),
+        showWarning(this, tr("هشدار"),
             tr("اطلاعات بارگذاری شد، اما ثبت وضعیت راه‌اندازی کامل نشد."));
     }
     refreshTable();
     selectFirstRow();
-    QMessageBox::information(this, tr("بازگردانی انجام شد"),
+    showInformation(this, tr("بازگردانی انجام شد"),
         initial ? tr("اطلاعات اولیه با موفقیت بارگذاری شد.")
                 : tr("پشتیبان با موفقیت بازگردانی شد."));
     return true;

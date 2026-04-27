@@ -49,6 +49,21 @@ QLabel#fieldHintLabel {
     font-size: 12px;
 }
 
+QFrame#shortcutsFrame {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+}
+
+QLabel#shortcutKeyLabel {
+    background-color: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-family: Consolas, "Courier New", monospace;
+}
+
 /* ---- inputs ------------------------------------------------------------ */
 QLineEdit, QPlainTextEdit, QTextEdit {
     background-color: #ffffff;

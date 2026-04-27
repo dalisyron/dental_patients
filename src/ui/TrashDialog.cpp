@@ -14,6 +14,30 @@
 
 namespace DentalPatients {
 
+namespace {
+
+void showMessage(QWidget* parent, QMessageBox::Icon icon, const QString& title, const QString& text) {
+    QMessageBox box(parent);
+    box.setIcon(icon);
+    box.setLayoutDirection(Qt::RightToLeft);
+    box.setWindowTitle(title);
+    box.setText(text);
+    auto* okButton = box.addButton(TrashDialog::tr("تأیید"), QMessageBox::AcceptRole);
+    box.setDefaultButton(okButton);
+    box.setEscapeButton(okButton);
+    box.exec();
+}
+
+void showInformation(QWidget* parent, const QString& title, const QString& text) {
+    showMessage(parent, QMessageBox::Information, title, text);
+}
+
+void showCritical(QWidget* parent, const QString& title, const QString& text) {
+    showMessage(parent, QMessageBox::Critical, title, text);
+}
+
+} // namespace
+
 TrashDialog::TrashDialog(PatientRepository* repo, QWidget* parent)
     : QDialog(parent), m_repo(repo) {
     setWindowTitle(tr("سطل بازیافت"));
@@ -78,13 +102,13 @@ void TrashDialog::refresh() {
 void TrashDialog::onRestore() {
     const int row = m_table->currentRow();
     if (row < 0 || row >= m_data.size()) {
-        QMessageBox::information(this, tr("بازگردانی"), tr("لطفاً یک ردیف را انتخاب کنید."));
+        showInformation(this, tr("بازگردانی"), tr("لطفاً یک ردیف را انتخاب کنید."));
         return;
     }
     const Patient& p = m_data.at(row);
     QString err;
     if (!m_repo->restoreFromTrash(p.id, &err)) {
-        QMessageBox::critical(this, tr("خطا"),
+        showCritical(this, tr("خطا"),
             tr("بازگردانی با خطا مواجه شد:\n%1").arg(err));
         return;
     }
