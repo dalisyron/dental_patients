@@ -7,6 +7,9 @@
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextOption>
+#include <QWidget>
+
+#include <array>
 
 using namespace DentalPatients;
 
@@ -15,6 +18,7 @@ class TextFieldsTest : public QObject {
 
 private slots:
     void patientDialogFieldsFollowDirectionRules();
+    void patientDialogHonorsRequestedInitialFocus();
 };
 
 namespace {
@@ -36,6 +40,27 @@ void verifyPersianLineEdit(QLineEdit* field) {
     QVERIFY(field->alignment().testFlag(Qt::AlignAbsolute));
     QVERIFY(field->alignment().testFlag(Qt::AlignVCenter));
     QCOMPARE(field->cursorMoveStyle(), Qt::LogicalMoveStyle);
+}
+
+QWidget* fieldWidget(PatientDialog& dialog, PatientDialog::Field field) {
+    switch (field) {
+        case PatientDialog::Field::FamilyName:
+            if (auto* target = dialog.findChild<QLineEdit*>(QStringLiteral("familyNameField"))) return target;
+            return lineEditByPlaceholder(dialog, QString::fromUtf8("Ù…Ø«Ø§Ù„: Ù…Ø­Ù…Ø¯ÛŒ"));
+        case PatientDialog::Field::GivenName:
+            if (auto* target = dialog.findChild<QLineEdit*>(QStringLiteral("givenNameField"))) return target;
+            return lineEditByPlaceholder(dialog, QString::fromUtf8("Ù…Ø«Ø§Ù„: Ø¹Ù„ÛŒ"));
+        case PatientDialog::Field::FileNumber:
+            if (auto* target = dialog.findChild<QLineEdit*>(QStringLiteral("fileNumberField"))) return target;
+            return lineEditByPlaceholder(dialog, QString::fromUtf8("Ù…Ø«Ø§Ù„: 1234"));
+        case PatientDialog::Field::Phone:
+            if (auto* target = dialog.findChild<QLineEdit*>(QStringLiteral("phoneField"))) return target;
+            return lineEditByPlaceholder(dialog, QString::fromUtf8("Ø§Ø®ØªÛŒØ§Ø±ÛŒ"));
+        case PatientDialog::Field::Notes:
+            if (auto* target = dialog.findChild<AnchoredPlaceholderPlainTextEdit*>(QStringLiteral("notesField"))) return target;
+            return dialog.findChild<AnchoredPlaceholderPlainTextEdit*>();
+    }
+    return nullptr;
 }
 
 } // namespace
@@ -70,6 +95,23 @@ void TextFieldsTest::patientDialogFieldsFollowDirectionRules() {
     QCOMPARE(firstBlock.blockFormat().layoutDirection(), Qt::RightToLeft);
     QVERIFY(firstBlock.blockFormat().alignment().testFlag(Qt::AlignRight));
     QVERIFY(firstBlock.blockFormat().alignment().testFlag(Qt::AlignAbsolute));
+}
+
+void TextFieldsTest::patientDialogHonorsRequestedInitialFocus() {
+    const std::array<PatientDialog::Field, 5> fields = {
+        PatientDialog::Field::FamilyName,
+        PatientDialog::Field::GivenName,
+        PatientDialog::Field::FileNumber,
+        PatientDialog::Field::Phone,
+        PatientDialog::Field::Notes
+    };
+
+    for (const PatientDialog::Field field : fields) {
+        PatientDialog dialog(PatientDialog::Mode::Add, nullptr, Patient{}, field);
+        QWidget* expected = fieldWidget(dialog, field);
+        QVERIFY(expected);
+        QCOMPARE(dialog.focusWidget(), expected);
+    }
 }
 
 QTEST_MAIN(TextFieldsTest)

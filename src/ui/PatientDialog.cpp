@@ -11,6 +11,7 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QTimer>
 #include <QTextBlockFormat>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -56,7 +57,15 @@ void configurePersianPlainTextEdit(QPlainTextEdit* field) {
 } // namespace
 
 PatientDialog::PatientDialog(Mode mode, PatientRepository* repo, Patient initial, QWidget* parent)
-    : QDialog(parent), m_mode(mode), m_repo(repo), m_current(std::move(initial)) {
+    : PatientDialog(mode, repo, std::move(initial), Field::FamilyName, parent) {}
+
+PatientDialog::PatientDialog(Mode mode, PatientRepository* repo, Patient initial, Field initialFocusField,
+                             QWidget* parent)
+    : QDialog(parent),
+      m_mode(mode),
+      m_repo(repo),
+      m_current(std::move(initial)),
+      m_initialFocusField(initialFocusField) {
     m_originalId = m_current.id;
     m_originalFileNumber = PersianText::toAsciiDigits(m_current.fileNumber.trimmed());
     setWindowTitle(mode == Mode::Add ? tr("افزودن بیمار جدید") : tr("ویرایش اطلاعات بیمار"));
@@ -64,6 +73,8 @@ PatientDialog::PatientDialog(Mode mode, PatientRepository* repo, Patient initial
     setLayoutDirection(Qt::RightToLeft);
     resize(560, 480);
     buildUi();
+    focusInitialField();
+    QTimer::singleShot(0, this, [this] { focusInitialField(); });
 }
 
 void PatientDialog::buildUi() {
@@ -76,26 +87,31 @@ void PatientDialog::buildUi() {
     form->setSpacing(10);
 
     m_familyName = new QLineEdit(m_current.familyName);
+    m_familyName->setObjectName(QStringLiteral("familyNameField"));
     m_familyName->setPlaceholderText(tr("مثال: محمدی"));
     configurePersianLineEdit(m_familyName);
     form->addRow(tr("نام خانوادگی *"), m_familyName);
 
     m_givenName = new QLineEdit(m_current.givenName);
+    m_givenName->setObjectName(QStringLiteral("givenNameField"));
     m_givenName->setPlaceholderText(tr("مثال: علی"));
     configurePersianLineEdit(m_givenName);
     form->addRow(tr("نام *"), m_givenName);
 
     m_fileNumber = new QLineEdit(m_current.fileNumber);
+    m_fileNumber->setObjectName(QStringLiteral("fileNumberField"));
     m_fileNumber->setPlaceholderText(tr("مثال: 1234"));
     configureLatinLineEdit(m_fileNumber);
     form->addRow(tr("شماره پرونده *"), m_fileNumber);
 
     m_phone = new QLineEdit(m_current.phone);
+    m_phone->setObjectName(QStringLiteral("phoneField"));
     m_phone->setPlaceholderText(tr("اختیاری"));
     configurePersianLineEdit(m_phone);
     form->addRow(tr("تلفن"), m_phone);
 
     auto* notes = new AnchoredPlaceholderPlainTextEdit(m_current.notes);
+    notes->setObjectName(QStringLiteral("notesField"));
     notes->setAnchoredPlaceholderText(tr("اختیاری"));
     m_notes = notes;
     configurePersianPlainTextEdit(m_notes);
@@ -131,6 +147,23 @@ void PatientDialog::buildUi() {
     connect(m_fileNumber, &QLineEdit::textChanged, this, &PatientDialog::onValidate);
 
     onValidate();
+}
+
+QWidget* PatientDialog::widgetForField(Field field) const {
+    switch (field) {
+        case Field::FamilyName: return m_familyName;
+        case Field::GivenName:  return m_givenName;
+        case Field::FileNumber: return m_fileNumber;
+        case Field::Phone:      return m_phone;
+        case Field::Notes:      return m_notes;
+    }
+    return m_familyName;
+}
+
+void PatientDialog::focusInitialField() {
+    if (QWidget* field = widgetForField(m_initialFocusField)) {
+        field->setFocus(Qt::OtherFocusReason);
+    }
 }
 
 bool PatientDialog::validate(QString* error) const {

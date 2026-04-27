@@ -39,6 +39,7 @@ private:
     void selectFirstRow();
     void updatePatientActions();
     void updateStatus();
+    void editCurrent(int initialFocusColumn);
 
     PatientRepository* m_repo;
     PatientTableModel* m_model = nullptr;

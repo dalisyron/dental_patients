@@ -16,8 +16,11 @@ class PatientDialog : public QDialog {
     Q_OBJECT
 public:
     enum class Mode { Add, Edit };
+    enum class Field { FamilyName, GivenName, FileNumber, Phone, Notes };
 
     PatientDialog(Mode mode, PatientRepository* repo, Patient initial, QWidget* parent = nullptr);
+    PatientDialog(Mode mode, PatientRepository* repo, Patient initial, Field initialFocusField,
+                  QWidget* parent = nullptr);
 
     Patient result() const { return m_current; }
 
@@ -28,10 +31,13 @@ private slots:
 private:
     void buildUi();
     bool validate(QString* error) const;
+    QWidget* widgetForField(Field field) const;
+    void focusInitialField();
 
     Mode m_mode;
     PatientRepository* m_repo;
     Patient m_current;
+    Field m_initialFocusField = Field::FamilyName;
     qint64 m_originalId = -1;
     QString m_originalFileNumber;
 

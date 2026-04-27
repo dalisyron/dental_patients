@@ -75,6 +75,17 @@ QString csvEscape(const QString& s) {
     return out;
 }
 
+PatientDialog::Field dialogFieldForColumn(int column) {
+    switch (column) {
+        case PatientTableModel::Col_GivenName:  return PatientDialog::Field::GivenName;
+        case PatientTableModel::Col_FileNumber: return PatientDialog::Field::FileNumber;
+        case PatientTableModel::Col_Phone:      return PatientDialog::Field::Phone;
+        case PatientTableModel::Col_Notes:      return PatientDialog::Field::Notes;
+        case PatientTableModel::Col_FamilyName:
+        default:                                return PatientDialog::Field::FamilyName;
+    }
+}
+
 } // namespace
 
 MainWindow::MainWindow(PatientRepository* repo, QWidget* parent)
@@ -154,7 +165,12 @@ void MainWindow::buildUi() {
     hh->setSectionResizeMode(PatientTableModel::Col_Notes,      QHeaderView::Stretch);
     connect(hh, &QHeaderView::sectionClicked, this, &MainWindow::onHeaderClicked);
 
-    connect(m_table, &QTableView::doubleClicked, this, [this](const QModelIndex&){ onEditCurrent(); });
+    connect(m_table, &QTableView::doubleClicked, this, [this](const QModelIndex& index) {
+        if (index.isValid()) {
+            m_table->setCurrentIndex(index);
+        }
+        editCurrent(index.column());
+    });
     connect(m_table->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, [this]{ updatePatientActions(); });
     connect(m_table->selectionModel(), &QItemSelectionModel::currentChanged,
@@ -296,11 +312,16 @@ void MainWindow::onAddClicked() {
 }
 
 void MainWindow::onEditCurrent() {
+    editCurrent(PatientTableModel::Col_FamilyName);
+}
+
+void MainWindow::editCurrent(int initialFocusColumn) {
     const QModelIndex idx = m_table->currentIndex();
     if (!idx.isValid()) return;
     const Patient p = m_model->patientAt(idx.row());
     if (p.id < 0) return;
-    PatientDialog dlg(PatientDialog::Mode::Edit, m_repo, p, this);
+    PatientDialog dlg(PatientDialog::Mode::Edit, m_repo, p,
+                      dialogFieldForColumn(initialFocusColumn), this);
     if (dlg.exec() == QDialog::Accepted) {
         refreshTable(m_search->text());
         for (int i = 0; i < m_model->patientCount(); ++i) {
