@@ -17,14 +17,15 @@ QLabel* shortcutKeyLabel(const QString& text) {
     auto* label = new QLabel(text);
     label->setObjectName(QStringLiteral("shortcutKeyLabel"));
     label->setLayoutDirection(Qt::LeftToRight);
-    label->setAlignment(Qt::AlignCenter);
+    label->setAlignment(Qt::AlignCenter | Qt::AlignAbsolute);
     label->setMinimumWidth(88);
     return label;
 }
 
 void addShortcutRow(QGridLayout* layout, int row, const QString& action, const QString& shortcut) {
     auto* actionLabel = new QLabel(action);
-    actionLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    actionLabel->setLayoutDirection(Qt::RightToLeft);
+    actionLabel->setAlignment(Qt::AlignRight | Qt::AlignAbsolute | Qt::AlignVCenter);
     layout->addWidget(actionLabel, row, 0);
     layout->addWidget(shortcutKeyLabel(shortcut), row, 1);
 }
@@ -66,18 +67,21 @@ AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent) {
 
     auto* shortcutsFrame = new QFrame;
     shortcutsFrame->setObjectName(QStringLiteral("shortcutsFrame"));
+    shortcutsFrame->setLayoutDirection(Qt::RightToLeft);
     auto* shortcutsLayout = new QVBoxLayout(shortcutsFrame);
     shortcutsLayout->setContentsMargins(14, 12, 14, 12);
     shortcutsLayout->setSpacing(10);
 
     auto* shortcutsTitle = new QLabel(tr("میانبرهای صفحه‌کلید"));
+    shortcutsTitle->setLayoutDirection(Qt::RightToLeft);
     QFont titleFont = shortcutsTitle->font();
     titleFont.setBold(true);
     shortcutsTitle->setFont(titleFont);
-    shortcutsTitle->setAlignment(Qt::AlignRight);
+    shortcutsTitle->setAlignment(Qt::AlignRight | Qt::AlignAbsolute);
     shortcutsLayout->addWidget(shortcutsTitle);
 
     auto* shortcutsGrid = new QGridLayout;
+    shortcutsGrid->setOriginCorner(Qt::TopRightCorner);
     shortcutsGrid->setContentsMargins(0, 0, 0, 0);
     shortcutsGrid->setHorizontalSpacing(18);
     shortcutsGrid->setVerticalSpacing(8);
