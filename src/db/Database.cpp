@@ -335,24 +335,52 @@ bool Database::restoreFromBackup(const QString& backupPath, QString* error) {
     }
 
     const QString live = m_path.isEmpty() ? defaultDbPath() : m_path;
+    const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"));
+    const QString restoreTmp = live + QStringLiteral(".restore-tmp-") + stamp;
+
+    QFile::remove(restoreTmp);
+    QFile backupFile(backupPath);
+    if (!backupFile.copy(restoreTmp)) {
+        if (error) {
+            *error = QStringLiteral("could not copy backup to temporary restore file: %1")
+                         .arg(backupFile.errorString());
+        }
+        return false;
+    }
+
     close();
 
-    // Move the current file aside before clobbering it.
+    // Stage the backup first, then move the current file aside only for the final swap.
+    QString aside;
     if (QFile::exists(live)) {
-        const QString aside = live + QStringLiteral(".pre-restore-")
-            + QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"));
-        if (!QFile::rename(live, aside)) {
-            if (error) *error = QStringLiteral("could not move existing db aside: %1").arg(live);
+        aside = live + QStringLiteral(".pre-restore-") + stamp;
+        QFile liveFile(live);
+        if (!liveFile.rename(aside)) {
+            QFile::remove(restoreTmp);
+            if (error) {
+                *error = QStringLiteral("could not move existing db aside: %1").arg(liveFile.errorString());
+            }
             return false;
         }
         QFile::remove(live + QStringLiteral("-wal"));
         QFile::remove(live + QStringLiteral("-shm"));
     }
 
-    if (!QFile::copy(backupPath, live)) {
-        if (error) *error = QStringLiteral("could not copy backup -> live db");
+    QFile tmpFile(restoreTmp);
+    if (!tmpFile.rename(live)) {
+        const QString restoreError = tmpFile.errorString();
+        if (!aside.isEmpty() && !QFile::exists(live) && !QFile::rename(aside, live)) {
+            if (error) {
+                *error = QStringLiteral("could not promote restored db: %1; rollback also failed")
+                             .arg(restoreError);
+            }
+        } else if (error) {
+            *error = QStringLiteral("could not promote restored db: %1").arg(restoreError);
+        }
+        QFile::remove(restoreTmp);
         return false;
     }
+
     return open(live, error);
 }
 

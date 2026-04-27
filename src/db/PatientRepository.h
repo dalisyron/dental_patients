@@ -22,7 +22,7 @@ public:
     std::optional<qint64> insert(const Patient& p, QString* error = nullptr);
 
     // Convenience for bulk loads (CSV import) - wraps work in one transaction.
-    int insertMany(const QVector<Patient>& ps, int* skippedRows, QString* error);
+    int insertMany(const QVector<Patient>& ps, QString* error);
 
     bool update(const Patient& p, QString* error = nullptr);
     bool softDelete(qint64 id, QString* error = nullptr);     // moves to patients_trash

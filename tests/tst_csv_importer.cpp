@@ -81,6 +81,31 @@ private slots:
         QCOMPARE(p->givenName, QStringLiteral("علی"));
     }
 
+    void countsBlankAndMalformedRowsAsSkipped() {
+        const QString path = m_dir.filePath(QStringLiteral("malformed.csv"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            QTextStream ts(&f);
+            ts.setEncoding(QStringConverter::Utf8);
+            ts << "Patient Name,Case Number\n";
+            ts << "Alpha One,100\n";
+            ts << "\n";
+            ts << "OnlyName\n";
+            ts << "   ,101\n";
+            ts << "Beta Two,\n";
+            ts << "Gamma Three,103\n";
+        }
+
+        PatientRepository repo(Database::instance().sql());
+        auto r = CsvImporter::importFromFile(path, repo);
+        QVERIFY2(r.ok, qPrintable(r.error));
+        QCOMPARE(r.parsed, 2);
+        QCOMPARE(r.imported, 2);
+        QCOMPARE(r.skipped, 4);
+        QCOMPARE(repo.count(), 2);
+    }
+
     void importsRealSeedCsvIfPresent() {
         const QString seed = QCoreApplication::applicationDirPath()
                               + QStringLiteral("/patient_list_merged_sorted.csv");

@@ -184,11 +184,10 @@ private slots:
             mk(QStringLiteral("b"), QStringLiteral("b"), QStringLiteral("100")),
             mk(QStringLiteral("c"), QStringLiteral("c"), QStringLiteral("101")),
         };
-        int skipped = 0; QString err;
-        const int imported = repo.insertMany(batch, &skipped, &err);
+        QString err;
+        const int imported = repo.insertMany(batch, &err);
         QVERIFY2(err.isEmpty(), qPrintable(err));
         QCOMPARE(imported, 3);
-        QCOMPARE(skipped, 0);
     }
 
     void meta() {

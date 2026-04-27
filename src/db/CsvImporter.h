@@ -12,7 +12,7 @@ public:
         bool    ok        = false;
         int     parsed    = 0;
         int     imported  = 0;
-        int     skipped   = 0;     // reserved for malformed rows skipped during import
+        int     skipped   = 0;     // blank or malformed rows skipped during import
         QString error;
     };
 

@@ -98,30 +98,37 @@ CsvImporter::Result CsvImporter::importFromFile(const QString& path, PatientRepo
 
     QString line;
     while (ts.readLineInto(&line)) {
-        if (line.trimmed().isEmpty()) continue;
+        if (line.trimmed().isEmpty()) {
+            ++r.skipped;
+            continue;
+        }
         const QStringList row = parseRow(line);
-        if (row.size() <= qMax(nameIdx, fileIdx)) continue;
+        if (row.size() <= qMax(nameIdx, fileIdx)) {
+            ++r.skipped;
+            continue;
+        }
 
         Patient p;
         const auto parts = PersianText::splitFamilyGiven(row.at(nameIdx).trimmed());
         p.familyName = parts.familyName;
         p.givenName  = parts.givenName;
         p.fileNumber = row.at(fileIdx).trimmed();
-        if ((p.familyName.isEmpty() && p.givenName.isEmpty()) || p.fileNumber.isEmpty()) continue;
+        if ((p.familyName.isEmpty() && p.givenName.isEmpty()) || p.fileNumber.isEmpty()) {
+            ++r.skipped;
+            continue;
+        }
 
         batch.append(p);
         ++r.parsed;
     }
 
-    int dupes = 0;
     QString err;
-    const int imported = repo.insertMany(batch, &dupes, &err);
+    const int imported = repo.insertMany(batch, &err);
     if (!err.isEmpty()) {
         r.error = err;
         return r;
     }
     r.imported = imported;
-    r.skipped  = dupes;
     r.ok       = true;
     return r;
 }

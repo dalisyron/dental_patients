@@ -117,9 +117,8 @@ std::optional<qint64> PatientRepository::insert(const Patient& p, QString* error
     return q.lastInsertId().toLongLong();
 }
 
-int PatientRepository::insertMany(const QVector<Patient>& ps, int* skippedRows, QString* error) {
+int PatientRepository::insertMany(const QVector<Patient>& ps, QString* error) {
     int imported = 0;
-    int skipped = 0;
     if (!m_db.transaction()) {
         if (error) *error = m_db.lastError().text();
         return 0;
@@ -160,7 +159,6 @@ int PatientRepository::insertMany(const QVector<Patient>& ps, int* skippedRows, 
         m_db.rollback();
         return 0;
     }
-    if (skippedRows) *skippedRows = skipped;
     return imported;
 }
 

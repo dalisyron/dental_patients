@@ -2,6 +2,7 @@
 #include "db/Patient.h"
 #include "db/PatientRepository.h"
 
+#include <QDir>
 #include <QFile>
 #include <QSqlQuery>
 #include <QStandardPaths>
@@ -68,6 +69,24 @@ private slots:
         QCOMPARE(repo2.count(), 1);
         auto only = repo2.findByFileNumber(QStringLiteral("1"));
         QVERIFY(only.has_value());
+    }
+
+    void failedRestoreCopyLeavesLiveDatabaseInPlace() {
+        PatientRepository repo(Database::instance().sql());
+        Patient p; p.familyName = QStringLiteral("a"); p.givenName = QStringLiteral("a"); p.fileNumber = QStringLiteral("1");
+        QString err;
+        QVERIFY2(repo.insert(p, &err).has_value(), qPrintable(err));
+        QCOMPARE(repo.count(), 1);
+
+        const QString live = Database::defaultDbPath();
+        QVERIFY(QFile::exists(live));
+
+        const QString invalidBackup = m_dir.filePath(QStringLiteral("invalid-backup-directory"));
+        QVERIFY(QDir().mkpath(invalidBackup));
+
+        QVERIFY(!Database::instance().restoreFromBackup(invalidBackup, &err));
+        QVERIFY(QFile::exists(live));
+        QCOMPARE(repo.count(), 1);
     }
 
     void rotateKeepsOnlyN() {

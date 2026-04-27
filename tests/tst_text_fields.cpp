@@ -89,6 +89,7 @@ void TextFieldsTest::patientDialogFieldsFollowDirectionRules() {
     QVERIFY(notes->document()->defaultTextOption().alignment().testFlag(Qt::AlignRight));
     QVERIFY(notes->document()->defaultTextOption().alignment().testFlag(Qt::AlignAbsolute));
     QCOMPARE(notes->document()->defaultCursorMoveStyle(), Qt::LogicalMoveStyle);
+    QVERIFY(notes->tabChangesFocus());
     QCOMPARE(notes->textCursor().position(), 0);
 
     const QTextBlock firstBlock = notes->document()->firstBlock();

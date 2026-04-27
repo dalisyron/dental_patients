@@ -38,7 +38,7 @@ private:
     PatientRepository::SortField currentSortField() const;
     void selectFirstRow();
     void updatePatientActions();
-    void updateStatus();
+    void updateStatus(int total);
     void editCurrent(int initialFocusColumn);
 
     PatientRepository* m_repo;

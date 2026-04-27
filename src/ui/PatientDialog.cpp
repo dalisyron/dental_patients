@@ -115,6 +115,7 @@ void PatientDialog::buildUi() {
     notes->setAnchoredPlaceholderText(tr("اختیاری"));
     m_notes = notes;
     configurePersianPlainTextEdit(m_notes);
+    m_notes->setTabChangesFocus(true);
     m_notes->setMinimumHeight(160);
     form->addRow(tr("یادداشت"), m_notes);
 
