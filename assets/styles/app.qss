@@ -29,6 +29,8 @@ QMenu {
 }
 QMenu::item { padding: 6px 24px; }
 QMenu::item:selected { background-color: #e7eef9; color: #1f2937; }
+QMenu::item:disabled { background-color: #f9fafb; color: #9ca3af; }
+QMenu::item:selected:disabled { background-color: #f9fafb; color: #9ca3af; }
 QMenu::separator { height: 1px; background: #e5e7eb; margin: 4px 6px; }
 
 QStatusBar { background-color: #ffffff; border-top: 1px solid #e5e7eb; }
