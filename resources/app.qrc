@@ -5,5 +5,11 @@
         <file alias="fonts/Vazirmatn-Regular.ttf">../assets/fonts/Vazirmatn-Regular.ttf</file>
         <file alias="fonts/Vazirmatn-Medium.ttf">../assets/fonts/Vazirmatn-Medium.ttf</file>
         <file alias="fonts/Vazirmatn-Bold.ttf">../assets/fonts/Vazirmatn-Bold.ttf</file>
+        <file alias="icons/dental-record-16x16.png">../assets/icons/dental-record-16x16.png</file>
+        <file alias="icons/dental-record-24x24.png">../assets/icons/dental-record-24x24.png</file>
+        <file alias="icons/dental-record-32x32.png">../assets/icons/dental-record-32x32.png</file>
+        <file alias="icons/dental-record-64x64.png">../assets/icons/dental-record-64x64.png</file>
+        <file alias="icons/dental-record-128x128.png">../assets/icons/dental-record-128x128.png</file>
+        <file alias="icons/dental-record-256x256.png">../assets/icons/dental-record-256x256.png</file>
     </qresource>
 </RCC>

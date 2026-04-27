@@ -1,7 +1,9 @@
-// Windows resource file. Exposes version metadata for the .exe.
-// (App icon will be added in a future release.)
+// Windows resource file. Exposes the app icon and version metadata for the .exe.
 
 #include <winver.h>
+
+#define IDI_APP_ICON 101
+IDI_APP_ICON ICON "app.ico"
 
 #ifndef DENTAL_VERSION_MAJOR
 #define DENTAL_VERSION_MAJOR 1

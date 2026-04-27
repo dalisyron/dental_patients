@@ -11,8 +11,10 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFontDatabase>
+#include <QIcon>
 #include <QLocale>
 #include <QMessageBox>
+#include <QSize>
 #include <QStandardPaths>
 #include <QStringList>
 
@@ -45,6 +47,18 @@ void applyStylesheet(QApplication& app) {
     QFile f(QStringLiteral(":/styles/app.qss"));
     if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         app.setStyleSheet(QString::fromUtf8(f.readAll()));
+    }
+}
+
+void setApplicationIcon(QApplication& app) {
+    QIcon icon;
+    const int sizes[] = {16, 24, 32, 64, 128, 256};
+    for (const int size : sizes) {
+        icon.addFile(QStringLiteral(":/icons/dental-record-%1x%1.png").arg(size),
+                     QSize(size, size));
+    }
+    if (!icon.isNull()) {
+        app.setWindowIcon(icon);
     }
 }
 
@@ -88,6 +102,7 @@ int main(int argc, char* argv[]) {
     QLocale::setDefault(QLocale(QLocale::Persian, QLocale::Iran));
     QApplication::setLayoutDirection(Qt::RightToLeft);
 
+    setApplicationIcon(app);
     installPersianFont();
     applyStylesheet(app);
 
