@@ -4,6 +4,7 @@
 #include "db/PatientRepository.h"
 #include "ui/AnchoredPlaceholderPlainTextEdit.h"
 
+#include <QCheckBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -23,6 +24,8 @@
 namespace DentalPatients {
 
 namespace {
+
+constexpr qint64 kAutoFileNumberStart = 6000;
 
 void configurePersianLineEdit(QLineEdit* field) {
     field->setLayoutDirection(Qt::RightToLeft);
@@ -102,7 +105,33 @@ void PatientDialog::buildUi() {
     m_fileNumber->setObjectName(QStringLiteral("fileNumberField"));
     m_fileNumber->setPlaceholderText(tr("مثال: 1234"));
     configureLatinLineEdit(m_fileNumber);
-    form->addRow(tr("شماره پرونده *"), m_fileNumber);
+    if (m_mode == Mode::Add) {
+        auto* fileNumberBox = new QWidget;
+        auto* fileNumberLayout = new QVBoxLayout(fileNumberBox);
+        fileNumberLayout->setContentsMargins(0, 0, 0, 0);
+        fileNumberLayout->setSpacing(4);
+
+        auto* fileNumberLine = new QHBoxLayout;
+        fileNumberLine->setContentsMargins(0, 0, 0, 0);
+        fileNumberLine->setSpacing(8);
+
+        m_autoFileNumber = new QCheckBox(tr("خودکار"));
+        m_autoFileNumber->setObjectName(QStringLiteral("autoFileNumberCheck"));
+        m_autoFileNumber->setToolTip(tr("اولین شماره پرونده آزاد از ۶۰۰۰ انتخاب می‌شود."));
+
+        fileNumberLine->addWidget(m_fileNumber, 1);
+        fileNumberLine->addWidget(m_autoFileNumber, 0);
+        fileNumberLayout->addLayout(fileNumberLine);
+
+        m_autoFileNumberHint = new QLabel;
+        m_autoFileNumberHint->setObjectName(QStringLiteral("fieldHintLabel"));
+        m_autoFileNumberHint->setWordWrap(true);
+        fileNumberLayout->addWidget(m_autoFileNumberHint);
+
+        form->addRow(tr("شماره پرونده *"), fileNumberBox);
+    } else {
+        form->addRow(tr("شماره پرونده *"), m_fileNumber);
+    }
 
     m_phone = new QLineEdit(m_current.phone);
     m_phone->setObjectName(QStringLiteral("phoneField"));
@@ -146,6 +175,15 @@ void PatientDialog::buildUi() {
     connect(m_familyName, &QLineEdit::textChanged, this, &PatientDialog::onValidate);
     connect(m_givenName,  &QLineEdit::textChanged, this, &PatientDialog::onValidate);
     connect(m_fileNumber, &QLineEdit::textChanged, this, &PatientDialog::onValidate);
+    if (m_autoFileNumber) {
+        const bool canAutoAssign = m_repo != nullptr;
+        const bool shouldAutoAssign = canAutoAssign && m_current.fileNumber.trimmed().isEmpty();
+        m_autoFileNumber->setEnabled(canAutoAssign);
+        m_autoFileNumber->setChecked(shouldAutoAssign);
+        updateAutoFileNumberUi(shouldAutoAssign, false);
+        connect(m_autoFileNumber, &QCheckBox::toggled,
+                this, &PatientDialog::onAutoFileNumberToggled);
+    }
 
     onValidate();
 }
@@ -183,6 +221,53 @@ bool PatientDialog::validate(QString* error) const {
     return true;
 }
 
+bool PatientDialog::assignNextFileNumber(bool showError) {
+    if (!m_repo) return false;
+
+    QString opErr;
+    const auto nextFileNumber = m_repo->nextAvailableFileNumber(kAutoFileNumberStart, &opErr);
+    if (!nextFileNumber) {
+        updateAutoFileNumberHint({});
+        if (showError) {
+            QMessageBox::critical(this, tr("خطای پایگاه داده"),
+                tr("محاسبه شماره پرونده آزاد با خطا مواجه شد:\n%1").arg(opErr));
+        }
+        return false;
+    }
+
+    m_fileNumber->setText(*nextFileNumber);
+    updateAutoFileNumberHint(*nextFileNumber);
+    return true;
+}
+
+void PatientDialog::updateAutoFileNumberUi(bool checked, bool showError) {
+    if (!m_autoFileNumber) return;
+
+    m_fileNumber->setReadOnly(checked);
+    if (checked) {
+        assignNextFileNumber(showError);
+    } else {
+        updateAutoFileNumberHint({});
+        m_fileNumber->setFocus(Qt::OtherFocusReason);
+        m_fileNumber->selectAll();
+    }
+    onValidate();
+}
+
+void PatientDialog::updateAutoFileNumberHint(const QString& fileNumber) {
+    if (!m_autoFileNumberHint) return;
+
+    if (fileNumber.isEmpty()) {
+        m_autoFileNumberHint->clear();
+        m_autoFileNumberHint->setVisible(false);
+        return;
+    }
+
+    m_autoFileNumberHint->setText(tr("شماره پیشنهادی: %1")
+                                      .arg(PersianText::toPersianDigits(fileNumber)));
+    m_autoFileNumberHint->setVisible(true);
+}
+
 void PatientDialog::onValidate() {
     QString err;
     const bool ok = validate(&err);
@@ -191,7 +276,15 @@ void PatientDialog::onValidate() {
     m_errorLabel->setVisible(!ok);
 }
 
+void PatientDialog::onAutoFileNumberToggled(bool checked) {
+    updateAutoFileNumberUi(checked, true);
+}
+
 void PatientDialog::onSave() {
+    if (m_autoFileNumber && m_autoFileNumber->isChecked() && !assignNextFileNumber(true)) {
+        return;
+    }
+
     QString err;
     if (!validate(&err)) {
         QMessageBox::warning(this, tr("خطا"), err);

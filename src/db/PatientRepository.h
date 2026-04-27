@@ -34,6 +34,8 @@ public:
     int  trashCount() const;
     std::optional<Patient> findById(qint64 id) const;
     std::optional<Patient> findByFileNumber(const QString& fileNumber) const;
+    std::optional<QString> nextAvailableFileNumber(qint64 startingAt = 6000,
+                                                    QString* error = nullptr) const;
 
     // search() returns up to `limit` matches. Family-name sorting always uses
     // given name as the tie-breaker.

@@ -3,6 +3,7 @@
 #include "core/PersianText.h"
 
 #include <QDateTime>
+#include <QSet>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QStringList>
@@ -293,6 +294,35 @@ std::optional<Patient> PatientRepository::findByFileNumber(const QString& fileNu
     q.addBindValue(fileNumberForStorage(fileNumber));
     if (q.exec() && q.next()) return readPatient(q);
     return std::nullopt;
+}
+
+std::optional<QString> PatientRepository::nextAvailableFileNumber(qint64 startingAt, QString* error) const {
+    if (startingAt < 0) startingAt = 0;
+
+    QSet<qint64> usedNumbers;
+    QSqlQuery q(m_db);
+    if (!q.exec(QStringLiteral(
+            "SELECT file_number FROM patients "
+            "UNION ALL "
+            "SELECT file_number FROM patients_trash;"))) {
+        if (error) *error = q.lastError().text();
+        return std::nullopt;
+    }
+
+    while (q.next()) {
+        const QString fileNumber = fileNumberForStorage(q.value(0).toString());
+        bool ok = false;
+        const qint64 number = fileNumber.toLongLong(&ok);
+        if (ok && number >= startingAt && QString::number(number) == fileNumber) {
+            usedNumbers.insert(number);
+        }
+    }
+
+    qint64 candidate = startingAt;
+    while (usedNumbers.contains(candidate)) {
+        ++candidate;
+    }
+    return QString::number(candidate);
 }
 
 QVector<Patient> PatientRepository::search(const QString& query,

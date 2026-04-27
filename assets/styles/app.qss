@@ -43,6 +43,12 @@ QLabel#errorLabel {
     border-radius: 6px;
 }
 
+QLabel#fieldHintLabel {
+    background-color: transparent;
+    color: #6b7280;
+    font-size: 12px;
+}
+
 /* ---- inputs ------------------------------------------------------------ */
 QLineEdit, QPlainTextEdit, QTextEdit {
     background-color: #ffffff;

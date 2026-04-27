@@ -7,6 +7,7 @@
 class QLineEdit;
 class QPlainTextEdit;
 class QLabel;
+class QCheckBox;
 
 namespace DentalPatients {
 
@@ -27,10 +28,14 @@ public:
 private slots:
     void onSave();
     void onValidate();
+    void onAutoFileNumberToggled(bool checked);
 
 private:
     void buildUi();
     bool validate(QString* error) const;
+    bool assignNextFileNumber(bool showError);
+    void updateAutoFileNumberUi(bool checked, bool showError);
+    void updateAutoFileNumberHint(const QString& fileNumber);
     QWidget* widgetForField(Field field) const;
     void focusInitialField();
 
@@ -46,6 +51,8 @@ private:
     QLineEdit* m_fileNumber = nullptr;
     QLineEdit* m_phone = nullptr;
     QPlainTextEdit* m_notes = nullptr;
+    QCheckBox* m_autoFileNumber = nullptr;
+    QLabel* m_autoFileNumberHint = nullptr;
     QLabel* m_errorLabel = nullptr;
     class QPushButton* m_saveBtn = nullptr;
 };

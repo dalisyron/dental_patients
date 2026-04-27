@@ -190,6 +190,40 @@ private slots:
         QCOMPARE(imported, 3);
     }
 
+    void nextAvailableFileNumberStartsAt6000() {
+        PatientRepository repo(Database::instance().sql());
+        QString err;
+        const auto next = repo.nextAvailableFileNumber(6000, &err);
+        QVERIFY2(next.has_value(), qPrintable(err));
+        QCOMPARE(*next, QStringLiteral("6000"));
+    }
+
+    void nextAvailableFileNumberSkipsAssignedNumbers() {
+        PatientRepository repo(Database::instance().sql());
+        QString err;
+        QVERIFY2(insert(repo, mk(QStringLiteral("a"), QStringLiteral("a"), QStringLiteral("5999")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("b"), QStringLiteral("b"), QStringLiteral("6000")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("c"), QStringLiteral("c"), QStringLiteral("6001")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("d"), QStringLiteral("d"), QStringLiteral("6001")), &err).has_value(), qPrintable(err));
+        QVERIFY2(insert(repo, mk(QStringLiteral("e"), QStringLiteral("e"), QStringLiteral("6003")), &err).has_value(), qPrintable(err));
+
+        const auto next = repo.nextAvailableFileNumber(6000, &err);
+        QVERIFY2(next.has_value(), qPrintable(err));
+        QCOMPARE(*next, QStringLiteral("6002"));
+    }
+
+    void nextAvailableFileNumberSkipsTrashRows() {
+        PatientRepository repo(Database::instance().sql());
+        QString err;
+        auto id = insert(repo, mk(QStringLiteral("a"), QStringLiteral("a"), QStringLiteral("6000")), &err);
+        QVERIFY2(id.has_value(), qPrintable(err));
+        QVERIFY(repo.softDelete(*id, &err));
+
+        const auto next = repo.nextAvailableFileNumber(6000, &err);
+        QVERIFY2(next.has_value(), qPrintable(err));
+        QCOMPARE(*next, QStringLiteral("6001"));
+    }
+
     void meta() {
         PatientRepository repo(Database::instance().sql());
         QVERIFY(repo.setMeta(QStringLiteral("k"), QStringLiteral("v1")));
