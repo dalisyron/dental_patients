@@ -5,6 +5,16 @@ The version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-11
+
+- English is now the default UI language; the full original Persian (RTL)
+  localization remains available from the new **Language** menu (restart to
+  apply, persisted per machine).
+- Layout direction, digit rendering, and field text direction now follow the
+  active language; case-number fields stay Latin in both.
+- README rewritten around screenshots and an animated demo
+  (`docs/media/`, fictional data).
+
 ## [1.0.0] - 2026-04-27
 
 Initial release for clinic installation.
