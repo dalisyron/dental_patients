@@ -1,5 +1,6 @@
 #include "ui/PatientTableModel.h"
 
+#include "core/AppLanguage.h"
 #include "core/PersianText.h"
 
 #include <utility>
@@ -41,8 +42,8 @@ QVariant PatientTableModel::data(const QModelIndex& idx, int role) const {
         switch (idx.column()) {
             case Col_FamilyName: return p.familyName;
             case Col_GivenName:  return p.givenName;
-            case Col_FileNumber: return PersianText::toPersianDigits(p.fileNumber);
-            case Col_Phone:      return PersianText::toPersianDigits(p.phone);
+            case Col_FileNumber: return AppLanguage::localizeDigits(p.fileNumber);
+            case Col_Phone:      return AppLanguage::localizeDigits(p.phone);
             case Col_Notes: {
                 // Notes can be long - show single-line preview in the table.
                 QString preview = p.notes;
@@ -54,7 +55,7 @@ QVariant PatientTableModel::data(const QModelIndex& idx, int role) const {
         }
     }
     if (role == Qt::TextAlignmentRole) {
-        return int(Qt::AlignVCenter | Qt::AlignRight);
+        return int(Qt::AlignVCenter | (AppLanguage::isPersian() ? Qt::AlignRight : Qt::AlignLeft));
     }
     if (role == Qt::UserRole) {
         return QVariant::fromValue(p.id);
@@ -69,15 +70,15 @@ QVariant PatientTableModel::headerData(int section, Qt::Orientation orientation,
     if (role != Qt::DisplayRole) return {};
     if (orientation == Qt::Horizontal) {
         switch (section) {
-            case Col_FamilyName: return tr("نام خانوادگی");
-            case Col_GivenName:  return tr("نام");
-            case Col_FileNumber: return tr("شماره پرونده");
-            case Col_Phone:      return tr("تلفن");
-            case Col_Notes:      return tr("یادداشت");
+            case Col_FamilyName: return tr("Family name");
+            case Col_GivenName:  return tr("Given name");
+            case Col_FileNumber: return tr("Case number");
+            case Col_Phone:      return tr("Phone");
+            case Col_Notes:      return tr("Notes");
             default: return {};
         }
     }
-    return PersianText::toPersianDigits(QString::number(section + 1));
+    return AppLanguage::localizeDigits(QString::number(section + 1));
 }
 
 } // namespace DentalPatients

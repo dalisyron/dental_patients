@@ -1,5 +1,6 @@
 #include "ui/TrashDialog.h"
 
+#include "core/AppLanguage.h"
 #include "core/PersianText.h"
 #include "db/PatientRepository.h"
 
@@ -19,10 +20,9 @@ namespace {
 void showMessage(QWidget* parent, QMessageBox::Icon icon, const QString& title, const QString& text) {
     QMessageBox box(parent);
     box.setIcon(icon);
-    box.setLayoutDirection(Qt::RightToLeft);
     box.setWindowTitle(title);
     box.setText(text);
-    auto* okButton = box.addButton(TrashDialog::tr("تأیید"), QMessageBox::AcceptRole);
+    auto* okButton = box.addButton(TrashDialog::tr("OK"), QMessageBox::AcceptRole);
     box.setDefaultButton(okButton);
     box.setEscapeButton(okButton);
     box.exec();
@@ -40,9 +40,8 @@ void showCritical(QWidget* parent, const QString& title, const QString& text) {
 
 TrashDialog::TrashDialog(PatientRepository* repo, QWidget* parent)
     : QDialog(parent), m_repo(repo) {
-    setWindowTitle(tr("سطل بازیافت"));
+    setWindowTitle(tr("Recycle bin"));
     setModal(true);
-    setLayoutDirection(Qt::RightToLeft);
     resize(720, 480);
     buildUi();
     refresh();
@@ -53,12 +52,12 @@ void TrashDialog::buildUi() {
     root->setContentsMargins(16, 16, 16, 16);
     root->setSpacing(10);
 
-    auto* hint = new QLabel(tr("بیماران حذف‌شده در اینجا نگه‌داری می‌شوند تا در صورت نیاز بازگردانده شوند."));
+    auto* hint = new QLabel(tr("Deleted patients are kept here and can be restored when needed."));
     hint->setWordWrap(true);
     root->addWidget(hint);
 
     m_table = new QTableWidget(0, 5);
-    m_table->setHorizontalHeaderLabels({tr("نام خانوادگی"), tr("نام"), tr("شماره پرونده"), tr("تلفن"), tr("یادداشت")});
+    m_table->setHorizontalHeaderLabels({tr("Family name"), tr("Given name"), tr("Case number"), tr("Phone"), tr("Notes")});
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setSelectionMode(QAbstractItemView::SingleSelection);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -74,9 +73,9 @@ void TrashDialog::buildUi() {
     root->addWidget(m_table, 1);
 
     auto* buttons = new QHBoxLayout;
-    auto* restore = new QPushButton(tr("بازگردانی"));
+    auto* restore = new QPushButton(tr("Restore"));
     restore->setObjectName(QStringLiteral("primaryButton"));
-    auto* close = new QPushButton(tr("بستن"));
+    auto* close = new QPushButton(tr("Close"));
     buttons->addStretch(1);
     buttons->addWidget(restore);
     buttons->addWidget(close);
@@ -93,8 +92,8 @@ void TrashDialog::refresh() {
         const Patient& p = m_data.at(i);
         m_table->setItem(i, 0, new QTableWidgetItem(p.familyName));
         m_table->setItem(i, 1, new QTableWidgetItem(p.givenName));
-        m_table->setItem(i, 2, new QTableWidgetItem(PersianText::toPersianDigits(p.fileNumber)));
-        m_table->setItem(i, 3, new QTableWidgetItem(PersianText::toPersianDigits(p.phone)));
+        m_table->setItem(i, 2, new QTableWidgetItem(AppLanguage::localizeDigits(p.fileNumber)));
+        m_table->setItem(i, 3, new QTableWidgetItem(AppLanguage::localizeDigits(p.phone)));
         m_table->setItem(i, 4, new QTableWidgetItem(p.notes));
     }
 }
@@ -102,14 +101,14 @@ void TrashDialog::refresh() {
 void TrashDialog::onRestore() {
     const int row = m_table->currentRow();
     if (row < 0 || row >= m_data.size()) {
-        showInformation(this, tr("بازگردانی"), tr("لطفاً یک ردیف را انتخاب کنید."));
+        showInformation(this, tr("Restore"), tr("Please select a row."));
         return;
     }
     const Patient& p = m_data.at(row);
     QString err;
     if (!m_repo->restoreFromTrash(p.id, &err)) {
-        showCritical(this, tr("خطا"),
-            tr("بازگردانی با خطا مواجه شد:\n%1").arg(err));
+        showCritical(this, tr("Error"),
+            tr("Restore failed:\n%1").arg(err));
         return;
     }
     emit restored();

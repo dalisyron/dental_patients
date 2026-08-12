@@ -1,5 +1,6 @@
 #include "ui/PatientDialog.h"
 
+#include "core/AppLanguage.h"
 #include "core/PersianText.h"
 #include "db/PatientRepository.h"
 #include "ui/AnchoredPlaceholderPlainTextEdit.h"
@@ -27,9 +28,14 @@ namespace {
 
 constexpr qint64 kAutoFileNumberStart = 6000;
 
-void configurePersianLineEdit(QLineEdit* field) {
-    field->setLayoutDirection(Qt::RightToLeft);
-    field->setAlignment(Qt::AlignRight | Qt::AlignAbsolute | Qt::AlignVCenter);
+// Free-text fields follow the UI language; Persian keeps the classic
+// right-aligned RTL entry, English the natural left-aligned one. Persian
+// text typed in English mode still shapes correctly within the line.
+void configureTextLineEdit(QLineEdit* field) {
+    if (AppLanguage::isPersian()) {
+        field->setLayoutDirection(Qt::RightToLeft);
+        field->setAlignment(Qt::AlignRight | Qt::AlignAbsolute | Qt::AlignVCenter);
+    }
     field->setCursorMoveStyle(Qt::LogicalMoveStyle);
 }
 
@@ -39,7 +45,11 @@ void configureLatinLineEdit(QLineEdit* field) {
     field->setCursorMoveStyle(Qt::LogicalMoveStyle);
 }
 
-void configurePersianPlainTextEdit(QPlainTextEdit* field) {
+void configureNotesEdit(QPlainTextEdit* field) {
+    if (!AppLanguage::isPersian()) {
+        field->document()->setDefaultCursorMoveStyle(Qt::LogicalMoveStyle);
+        return;
+    }
     field->setLayoutDirection(Qt::RightToLeft);
 
     QTextOption option = field->document()->defaultTextOption();
@@ -60,10 +70,9 @@ void configurePersianPlainTextEdit(QPlainTextEdit* field) {
 void showMessage(QWidget* parent, QMessageBox::Icon icon, const QString& title, const QString& text) {
     QMessageBox box(parent);
     box.setIcon(icon);
-    box.setLayoutDirection(Qt::RightToLeft);
     box.setWindowTitle(title);
     box.setText(text);
-    auto* okButton = box.addButton(PatientDialog::tr("تأیید"), QMessageBox::AcceptRole);
+    auto* okButton = box.addButton(PatientDialog::tr("OK"), QMessageBox::AcceptRole);
     box.setDefaultButton(okButton);
     box.setEscapeButton(okButton);
     box.exec();
@@ -91,9 +100,8 @@ PatientDialog::PatientDialog(Mode mode, PatientRepository* repo, Patient initial
       m_initialFocusField(initialFocusField) {
     m_originalId = m_current.id;
     m_originalFileNumber = PersianText::toAsciiDigits(m_current.fileNumber.trimmed());
-    setWindowTitle(mode == Mode::Add ? tr("افزودن بیمار جدید") : tr("ویرایش اطلاعات بیمار"));
+    setWindowTitle(mode == Mode::Add ? tr("Add new patient") : tr("Edit patient"));
     setModal(true);
-    setLayoutDirection(Qt::RightToLeft);
     resize(560, 480);
     buildUi();
     focusInitialField();
@@ -106,24 +114,24 @@ void PatientDialog::buildUi() {
     root->setSpacing(14);
 
     auto* form = new QFormLayout;
-    form->setLabelAlignment(Qt::AlignRight);
+    form->setLabelAlignment(AppLanguage::isPersian() ? Qt::AlignRight : Qt::AlignLeft);
     form->setSpacing(10);
 
     m_familyName = new QLineEdit(m_current.familyName);
     m_familyName->setObjectName(QStringLiteral("familyNameField"));
-    m_familyName->setPlaceholderText(tr("مثال: محمدی"));
-    configurePersianLineEdit(m_familyName);
-    form->addRow(tr("نام خانوادگی *"), m_familyName);
+    m_familyName->setPlaceholderText(tr("e.g. Smith"));
+    configureTextLineEdit(m_familyName);
+    form->addRow(tr("Family name *"), m_familyName);
 
     m_givenName = new QLineEdit(m_current.givenName);
     m_givenName->setObjectName(QStringLiteral("givenNameField"));
-    m_givenName->setPlaceholderText(tr("مثال: علی"));
-    configurePersianLineEdit(m_givenName);
-    form->addRow(tr("نام *"), m_givenName);
+    m_givenName->setPlaceholderText(tr("e.g. Sarah"));
+    configureTextLineEdit(m_givenName);
+    form->addRow(tr("Given name *"), m_givenName);
 
     m_fileNumber = new QLineEdit(m_current.fileNumber);
     m_fileNumber->setObjectName(QStringLiteral("fileNumberField"));
-    m_fileNumber->setPlaceholderText(tr("مثال: 1234"));
+    m_fileNumber->setPlaceholderText(tr("e.g. 1234"));
     configureLatinLineEdit(m_fileNumber);
     if (m_mode == Mode::Add) {
         auto* fileNumberBox = new QWidget;
@@ -135,9 +143,9 @@ void PatientDialog::buildUi() {
         fileNumberLine->setContentsMargins(0, 0, 0, 0);
         fileNumberLine->setSpacing(8);
 
-        m_autoFileNumber = new QCheckBox(tr("خودکار"));
+        m_autoFileNumber = new QCheckBox(tr("Auto"));
         m_autoFileNumber->setObjectName(QStringLiteral("autoFileNumberCheck"));
-        m_autoFileNumber->setToolTip(tr("اولین شماره پرونده آزاد از ۶۰۰۰ انتخاب می‌شود."));
+        m_autoFileNumber->setToolTip(tr("Picks the first free case number starting at 6000."));
 
         fileNumberLine->addWidget(m_fileNumber, 1);
         fileNumberLine->addWidget(m_autoFileNumber, 0);
@@ -148,25 +156,25 @@ void PatientDialog::buildUi() {
         m_autoFileNumberHint->setWordWrap(true);
         fileNumberLayout->addWidget(m_autoFileNumberHint);
 
-        form->addRow(tr("شماره پرونده *"), fileNumberBox);
+        form->addRow(tr("Case number *"), fileNumberBox);
     } else {
-        form->addRow(tr("شماره پرونده *"), m_fileNumber);
+        form->addRow(tr("Case number *"), m_fileNumber);
     }
 
     m_phone = new QLineEdit(m_current.phone);
     m_phone->setObjectName(QStringLiteral("phoneField"));
-    m_phone->setPlaceholderText(tr("اختیاری"));
-    configurePersianLineEdit(m_phone);
-    form->addRow(tr("تلفن"), m_phone);
+    m_phone->setPlaceholderText(tr("Optional"));
+    configureTextLineEdit(m_phone);
+    form->addRow(tr("Phone"), m_phone);
 
     auto* notes = new AnchoredPlaceholderPlainTextEdit(m_current.notes);
     notes->setObjectName(QStringLiteral("notesField"));
-    notes->setAnchoredPlaceholderText(tr("اختیاری"));
+    notes->setAnchoredPlaceholderText(tr("Optional"));
     m_notes = notes;
-    configurePersianPlainTextEdit(m_notes);
+    configureNotesEdit(m_notes);
     m_notes->setTabChangesFocus(true);
     m_notes->setMinimumHeight(160);
-    form->addRow(tr("یادداشت"), m_notes);
+    form->addRow(tr("Notes"), m_notes);
 
     root->addLayout(form);
 
@@ -179,11 +187,11 @@ void PatientDialog::buildUi() {
     auto* buttons = new QHBoxLayout;
     buttons->setSpacing(10);
 
-    m_saveBtn = new QPushButton(tr("ذخیره"));
+    m_saveBtn = new QPushButton(tr("Save"));
     m_saveBtn->setObjectName(QStringLiteral("primaryButton"));
     m_saveBtn->setDefault(true);
 
-    auto* cancel = new QPushButton(tr("انصراف"));
+    auto* cancel = new QPushButton(tr("Cancel"));
 
     buttons->addStretch(1);
     buttons->addWidget(m_saveBtn);
@@ -227,15 +235,15 @@ void PatientDialog::focusInitialField() {
 
 bool PatientDialog::validate(QString* error) const {
     if (m_familyName->text().trimmed().isEmpty()) {
-        if (error) *error = tr("نام خانوادگی الزامی است.");
+        if (error) *error = tr("Family name is required.");
         return false;
     }
     if (m_givenName->text().trimmed().isEmpty()) {
-        if (error) *error = tr("نام الزامی است.");
+        if (error) *error = tr("Given name is required.");
         return false;
     }
     if (m_fileNumber->text().trimmed().isEmpty()) {
-        if (error) *error = tr("شماره پرونده الزامی است.");
+        if (error) *error = tr("Case number is required.");
         return false;
     }
     return true;
@@ -249,8 +257,8 @@ bool PatientDialog::assignNextFileNumber(bool showError) {
     if (!nextFileNumber) {
         updateAutoFileNumberHint({});
         if (showError) {
-            showCritical(this, tr("خطای پایگاه داده"),
-                tr("محاسبه شماره پرونده آزاد با خطا مواجه شد:\n%1").arg(opErr));
+            showCritical(this, tr("Database error"),
+                tr("Finding a free case number failed:\n%1").arg(opErr));
         }
         return false;
     }
@@ -283,8 +291,8 @@ void PatientDialog::updateAutoFileNumberHint(const QString& fileNumber) {
         return;
     }
 
-    m_autoFileNumberHint->setText(tr("شماره پیشنهادی: %1")
-                                      .arg(PersianText::toPersianDigits(fileNumber)));
+    m_autoFileNumberHint->setText(tr("Suggested number: %1")
+                                      .arg(AppLanguage::localizeDigits(fileNumber)));
     m_autoFileNumberHint->setVisible(true);
 }
 
@@ -307,7 +315,7 @@ void PatientDialog::onSave() {
 
     QString err;
     if (!validate(&err)) {
-        showWarning(this, tr("خطا"), err);
+        showWarning(this, tr("Error"), err);
         return;
     }
 
@@ -323,9 +331,8 @@ void PatientDialog::onSave() {
     if (m_mode == Mode::Add || p.fileNumber != m_originalFileNumber) {
         auto existing = m_repo->findByFileNumber(p.fileNumber);
         if (existing && existing->id != m_originalId) {
-            const auto reply = QMessageBox::question(this, tr("شماره پرونده تکراری"),
-                tr("این شماره پرونده قبلاً برای بیمار «%1» ثبت شده است.\n"
-                   "آیا می‌خواهید با همین شماره پرونده ذخیره شود؟").arg(existing->displayName()),
+            const auto reply = QMessageBox::question(this, tr("Duplicate case number"),
+                tr("This case number is already used by “%1”.\nSave with the same case number anyway?").arg(existing->displayName()),
                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
             if (reply != QMessageBox::Yes) return;
         }
@@ -340,8 +347,8 @@ void PatientDialog::onSave() {
         ok = m_repo->update(p, &opErr);
     }
     if (!ok) {
-        showCritical(this, tr("خطای پایگاه داده"),
-            tr("ذخیره با خطا مواجه شد:\n%1").arg(opErr));
+        showCritical(this, tr("Database error"),
+            tr("Saving failed:\n%1").arg(opErr));
         return;
     }
     m_current = p;

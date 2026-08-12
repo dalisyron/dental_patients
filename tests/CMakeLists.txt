@@ -24,6 +24,8 @@ dp_add_test(tst_migrations     tst_migrations.cpp)
 qt_add_executable(tst_text_fields
     tst_text_fields.cpp
     ${CORE_SOURCES}
+    ${CMAKE_SOURCE_DIR}/src/core/AppLanguage.h
+    ${CMAKE_SOURCE_DIR}/src/core/AppLanguage.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/AnchoredPlaceholderPlainTextEdit.h
     ${CMAKE_SOURCE_DIR}/src/ui/AnchoredPlaceholderPlainTextEdit.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/PatientDialog.h

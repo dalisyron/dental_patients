@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.21)
 
 # ---- Project ----------------------------------------------------------------
 project(DentalPatients
-    VERSION 1.0.0
-    DESCRIPTION "Persian dental patient records manager"
+    VERSION 1.1.0
+    DESCRIPTION "Offline dental patient records manager"
     LANGUAGES CXX
 )
 
@@ -47,6 +47,8 @@ configure_file(
 # ---- Sources ----------------------------------------------------------------
 set(APP_SOURCES
     src/main.cpp
+    src/core/AppLanguage.h
+    src/core/AppLanguage.cpp
     src/core/PersianText.h
     src/core/PersianText.cpp
     src/core/SingleInstance.h
@@ -74,10 +76,15 @@ set(APP_SOURCES
 qt_add_resources(APP_RESOURCES_QRC resources/app.qrc)
 
 # ---- Executable -------------------------------------------------------------
+set(APP_PLATFORM_SOURCES)
+if(WIN32)
+    list(APPEND APP_PLATFORM_SOURCES assets/icons/app.rc)
+endif()
+
 qt_add_executable(${APP_EXE_NAME} WIN32
     ${APP_SOURCES}
     ${APP_RESOURCES_QRC}
-    assets/icons/app.rc
+    ${APP_PLATFORM_SOURCES}
 )
 
 target_include_directories(${APP_EXE_NAME} PRIVATE

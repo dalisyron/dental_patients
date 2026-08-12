@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/AppLanguage.h"
 #include "db/PatientRepository.h"
 
 #include <QMainWindow>
@@ -44,6 +45,7 @@ private:
     void buildUi();
     QWidget* buildInitialSetupWidget();
     void buildMenus();
+    void switchLanguage(AppLanguage::Language lang);
     void refreshTable(const QString& query = {});
     PatientRepository::SortField currentSortField() const;
     bool isInitialSetupPending() const;

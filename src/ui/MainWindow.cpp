@@ -1,6 +1,7 @@
 #include "ui/MainWindow.h"
 
 #include "Version.h"
+#include "core/AppLanguage.h"
 #include "core/PersianText.h"
 #include "db/Database.h"
 #include "db/PatientRepository.h"
@@ -10,6 +11,7 @@
 #include "ui/TrashDialog.h"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QApplication>
 #include <QDateTime>
 #include <QDesktopServices>
@@ -30,6 +32,7 @@
 #include <QPainter>
 #include <QPen>
 #include <QPixmap>
+#include <QProcess>
 #include <QPushButton>
 #include <QShortcut>
 #include <QSize>
@@ -54,7 +57,7 @@ constexpr int kFirstRunBodyLines = 3;
 constexpr int kFirstRunBodyVerticalPadding = 12;
 
 QString backupFileFilter() {
-    return MainWindow::tr("فایل پشتیبان Dental Patients (*.dpbackup)");
+    return MainWindow::tr("Dental Patients backup files (*.dpbackup)");
 }
 
 QIcon createAddIcon() {
@@ -102,10 +105,9 @@ PatientDialog::Field dialogFieldForColumn(int column) {
 void showMessage(QWidget* parent, QMessageBox::Icon icon, const QString& title, const QString& text) {
     QMessageBox box(parent);
     box.setIcon(icon);
-    box.setLayoutDirection(Qt::RightToLeft);
     box.setWindowTitle(title);
     box.setText(text);
-    auto* okButton = box.addButton(MainWindow::tr("تأیید"), QMessageBox::AcceptRole);
+    auto* okButton = box.addButton(MainWindow::tr("OK"), QMessageBox::AcceptRole);
     box.setDefaultButton(okButton);
     box.setEscapeButton(okButton);
     box.exec();
@@ -128,10 +130,9 @@ void showCritical(QWidget* parent, const QString& title, const QString& text) {
 MainWindow::MainWindow(PatientRepository* repo, QWidget* parent)
     : QMainWindow(parent), m_repo(repo) {
     setWindowTitle(QStringLiteral("%1  -  v%2")
-                       .arg(QString::fromUtf8(Version::kAppNameFa),
+                       .arg(AppLanguage::appDisplayName(),
                             QString::fromUtf8(Version::kString)));
     resize(1100, 720);
-    setLayoutDirection(Qt::RightToLeft);
 
     m_searchDebounce.setSingleShot(true);
     m_searchDebounce.setInterval(kSearchDebounceMs);
@@ -157,15 +158,17 @@ void MainWindow::buildUi() {
 
     m_search = new QLineEdit;
     m_search->setObjectName(QStringLiteral("searchBox"));
-    m_search->setPlaceholderText(tr("جستجوی نام، شماره پرونده، تلفن..."));
+    m_search->setPlaceholderText(tr("Search name, case number, phone..."));
     m_search->setClearButtonEnabled(true);
-    m_search->setLayoutDirection(Qt::RightToLeft);
-    m_search->setAlignment(Qt::AlignRight | Qt::AlignAbsolute | Qt::AlignVCenter);
+    if (AppLanguage::isPersian()) {
+        m_search->setLayoutDirection(Qt::RightToLeft);
+        m_search->setAlignment(Qt::AlignRight | Qt::AlignAbsolute | Qt::AlignVCenter);
+    }
     m_search->setCursorMoveStyle(Qt::LogicalMoveStyle);
     m_search->setMinimumHeight(36);
     connect(m_search, &QLineEdit::textChanged, this, &MainWindow::onSearchChanged);
 
-    m_addButton = new QPushButton(tr("افزودن بیمار"));
+    m_addButton = new QPushButton(tr("Add Patient"));
     m_addButton->setIcon(createAddIcon());
     m_addButton->setIconSize(QSize(18, 18));
     m_addButton->setObjectName(QStringLiteral("primaryButton"));
@@ -251,27 +254,27 @@ QWidget* MainWindow::buildInitialSetupWidget() {
     content->setSpacing(14);
     content->setAlignment(Qt::AlignHCenter);
 
-    auto* title = new QLabel(tr("راه‌اندازی اولیه اطلاعات بیماران"));
+    auto* title = new QLabel(tr("Initial patient data setup"));
     title->setAlignment(Qt::AlignCenter);
     QFont titleFont = title->font();
     titleFont.setPointSize(titleFont.pointSize() + 4);
     titleFont.setBold(true);
     title->setFont(titleFont);
 
-    auto* body = new QLabel(tr("برای شروع، فایل پشتیبان Dental Patients با پسوند .dpbackup را بارگذاری کنید یا پایگاه داده خالی بسازید."));
+    auto* body = new QLabel(tr("To get started, load a Dental Patients backup file (.dpbackup) or start with an empty database."));
     body->setAlignment(Qt::AlignCenter);
     body->setWordWrap(true);
     body->setMaximumWidth(kFirstRunTextMaxWidth);
     body->setMinimumHeight(body->fontMetrics().lineSpacing() * kFirstRunBodyLines
                            + kFirstRunBodyVerticalPadding);
 
-    auto* loadBackup = new QPushButton(tr("بارگذاری فایل پشتیبان (.dpbackup)"));
+    auto* loadBackup = new QPushButton(tr("Load backup file (.dpbackup)"));
     loadBackup->setObjectName(QStringLiteral("primaryButton"));
     loadBackup->setMinimumHeight(38);
     loadBackup->setMinimumWidth(260);
     connect(loadBackup, &QPushButton::clicked, this, &MainWindow::onLoadInitialBackup);
 
-    auto* startEmpty = new QPushButton(tr("شروع با پایگاه داده خالی"));
+    auto* startEmpty = new QPushButton(tr("Start with an empty database"));
     startEmpty->setMinimumHeight(34);
     startEmpty->setMinimumWidth(260);
     connect(startEmpty, &QPushButton::clicked, this, &MainWindow::onStartEmptyDatabase);
@@ -288,15 +291,15 @@ QWidget* MainWindow::buildInitialSetupWidget() {
 }
 
 void MainWindow::buildMenus() {
-    auto* file = menuBar()->addMenu(tr("&پرونده"));
+    auto* file = menuBar()->addMenu(tr("&File"));
 
-    m_actAdd = file->addAction(tr("افزودن بیمار جدید..."), QKeySequence::New, this, &MainWindow::onAddClicked);
+    m_actAdd = file->addAction(tr("Add new patient..."), QKeySequence::New, this, &MainWindow::onAddClicked);
     m_actAdd->setShortcutContext(Qt::WindowShortcut);
     addAction(m_actAdd);
-    m_actEdit = file->addAction(tr("ویرایش بیمار انتخاب‌شده..."), this, &MainWindow::onEditCurrent);
+    m_actEdit = file->addAction(tr("Edit selected patient..."), this, &MainWindow::onEditCurrent);
     m_actEdit->setShortcut(QKeySequence(Qt::Key_F2));
     m_actEdit->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-    m_actDelete = file->addAction(tr("حذف بیمار انتخاب‌شده..."), this, &MainWindow::onDeleteCurrent);
+    m_actDelete = file->addAction(tr("Delete selected patient..."), this, &MainWindow::onDeleteCurrent);
     m_actDelete->setShortcut(QKeySequence(Qt::Key_Delete));
     m_actDelete->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     if (m_table) {
@@ -305,19 +308,57 @@ void MainWindow::buildMenus() {
     }
     updatePatientActions();
     file->addSeparator();
-    m_actExport = file->addAction(tr("ذخیره خروجی CSV..."), this, &MainWindow::onExportCsv);
+    m_actExport = file->addAction(tr("Export CSV..."), this, &MainWindow::onExportCsv);
     file->addSeparator();
-    m_actQuit = file->addAction(tr("خروج"), QKeySequence::Quit, this, &QWidget::close);
+    m_actQuit = file->addAction(tr("Quit"), QKeySequence::Quit, this, &QWidget::close);
 
-    auto* tools = menuBar()->addMenu(tr("&ابزارها"));
-    m_actBackup = tools->addAction(tr("ایجاد پشتیبان"), this, &MainWindow::onBackupNow);
-    m_actRestore = tools->addAction(tr("بازگردانی از پشتیبان..."), this, &MainWindow::onRestoreBackup);
-    m_actTrash  = tools->addAction(tr("سطل بازیافت..."), this, &MainWindow::onShowTrash);
+    auto* tools = menuBar()->addMenu(tr("&Tools"));
+    m_actBackup = tools->addAction(tr("Create backup"), this, &MainWindow::onBackupNow);
+    m_actRestore = tools->addAction(tr("Restore from backup..."), this, &MainWindow::onRestoreBackup);
+    m_actTrash  = tools->addAction(tr("Recycle bin..."), this, &MainWindow::onShowTrash);
     tools->addSeparator();
-    m_actDataLoc = tools->addAction(tr("نمایش پوشه اطلاعات"), this, &MainWindow::onShowDataLocation);
+    m_actDataLoc = tools->addAction(tr("Show data folder"), this, &MainWindow::onShowDataLocation);
 
-    auto* help = menuBar()->addMenu(tr("&راهنما"));
-    m_actAbout = help->addAction(tr("درباره برنامه..."), this, &MainWindow::onAbout);
+    // Language names are deliberately shown in their own script, untranslated.
+    auto* language = menuBar()->addMenu(tr("&Language"));
+    auto* languageGroup = new QActionGroup(this);
+    languageGroup->setExclusive(true);
+    auto addLanguage = [this, language, languageGroup](const QString& name,
+                                                       AppLanguage::Language lang) {
+        QAction* action = language->addAction(name);
+        action->setCheckable(true);
+        action->setChecked(AppLanguage::current() == lang);
+        languageGroup->addAction(action);
+        connect(action, &QAction::triggered, this, [this, lang] { switchLanguage(lang); });
+    };
+    addLanguage(QStringLiteral("English"), AppLanguage::Language::English);
+    addLanguage(QStringLiteral("فارسی"), AppLanguage::Language::Persian);
+
+    auto* help = menuBar()->addMenu(tr("&Help"));
+    m_actAbout = help->addAction(tr("About..."), this, &MainWindow::onAbout);
+}
+
+void MainWindow::switchLanguage(AppLanguage::Language lang) {
+    if (AppLanguage::current() == lang) return;
+    AppLanguage::setCurrent(lang);
+
+    QMessageBox box(this);
+    box.setIcon(QMessageBox::Question);
+    box.setWindowTitle(tr("Language changed"));
+    box.setText(tr("Restart the application now to apply the new language?"));
+    auto* restartButton = box.addButton(tr("Restart now"), QMessageBox::AcceptRole);
+    auto* laterButton = box.addButton(tr("Later"), QMessageBox::RejectRole);
+    box.setDefaultButton(restartButton);
+    box.setEscapeButton(laterButton);
+    box.exec();
+
+    if (box.clickedButton() == restartButton) {
+        // The fresh process waits (--relaunched) for this one to release the
+        // single-instance server and the database before starting up.
+        QProcess::startDetached(QApplication::applicationFilePath(),
+                                {QStringLiteral("--relaunched")});
+        close();
+    }
 }
 
 void MainWindow::onSearchChanged(const QString& text) {
@@ -378,7 +419,7 @@ void MainWindow::updateInitialSetupState(int total) {
         m_actAdd->setEnabled(!pending);
     }
     if (pending && m_statusLabel) {
-        m_statusLabel->setText(tr("آماده راه‌اندازی اولیه"));
+        m_statusLabel->setText(tr("Ready for initial setup"));
     } else {
         updateStatus(total);
     }
@@ -410,9 +451,9 @@ void MainWindow::updatePatientActions() {
 
 void MainWindow::updateStatus(int total) {
     const int shown = m_model->patientCount();
-    const QString msg = tr("نمایش %1 از %2 بیمار")
-                            .arg(PersianText::toPersianDigits(QString::number(shown)),
-                                 PersianText::toPersianDigits(QString::number(total)));
+    const QString msg = tr("Showing %1 of %2 patients")
+                            .arg(AppLanguage::localizeDigits(QString::number(shown)),
+                                 AppLanguage::localizeDigits(QString::number(total)));
     m_statusLabel->setText(msg);
 }
 
@@ -461,13 +502,11 @@ void MainWindow::onDeleteCurrent() {
 
     QMessageBox confirm(this);
     confirm.setIcon(QMessageBox::Question);
-    confirm.setWindowTitle(tr("حذف بیمار"));
-    confirm.setText(tr("آیا از حذف «%1» (شماره پرونده %2) مطمئن هستید؟\n"
-                       "بیمار حذف‌شده در سطل بازیافت قابل بازگردانی است.")
-                        .arg(p.displayName(), PersianText::toPersianDigits(p.fileNumber)));
-    confirm.setLayoutDirection(Qt::RightToLeft);
-    auto* yesButton = confirm.addButton(tr("بله"), QMessageBox::YesRole);
-    auto* noButton = confirm.addButton(tr("خیر"), QMessageBox::NoRole);
+    confirm.setWindowTitle(tr("Delete patient"));
+    confirm.setText(tr("Delete “%1” (case number %2)?\nDeleted patients can be restored from the recycle bin.")
+                        .arg(p.displayName(), AppLanguage::localizeDigits(p.fileNumber)));
+    auto* yesButton = confirm.addButton(tr("Yes"), QMessageBox::YesRole);
+    auto* noButton = confirm.addButton(tr("No"), QMessageBox::NoRole);
     confirm.setDefaultButton(noButton);
     confirm.setEscapeButton(noButton);
     confirm.exec();
@@ -476,8 +515,8 @@ void MainWindow::onDeleteCurrent() {
 
     QString err;
     if (!m_repo->softDelete(p.id, &err)) {
-        showCritical(this, tr("خطا"),
-            tr("حذف با خطا مواجه شد:\n%1").arg(err));
+        showCritical(this, tr("Error"),
+            tr("Delete failed:\n%1").arg(err));
         return;
     }
     refreshTable(m_search->text());
@@ -487,14 +526,14 @@ void MainWindow::onDeleteCurrent() {
 void MainWindow::onExportCsv() {
     const QString suggested = QStringLiteral("patients-%1.csv")
         .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")));
-    const QString path = QFileDialog::getSaveFileName(this, tr("ذخیره خروجی CSV"),
+    const QString path = QFileDialog::getSaveFileName(this, tr("Export CSV"),
                                                       suggested, tr("CSV files (*.csv)"));
     if (path.isEmpty()) return;
 
     QFile f(path);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        showCritical(this, tr("خطا"),
-            tr("نتوانستم فایل را برای نوشتن باز کنم:\n%1").arg(f.errorString()));
+        showCritical(this, tr("Error"),
+            tr("Could not open the file for writing:\n%1").arg(f.errorString()));
         return;
     }
     QTextStream ts(&f);
@@ -516,38 +555,38 @@ void MainWindow::onExportCsv() {
         const QString detail = f.errorString();
         f.close();
         QFile::remove(path);
-        showCritical(this, tr("خطا"),
-            tr("ذخیره خروجی با خطا مواجه شد:\n%1").arg(detail));
+        showCritical(this, tr("Error"),
+            tr("Export failed:\n%1").arg(detail));
         return;
     }
     f.close();
     if (f.error() != QFileDevice::NoError) {
         const QString detail = f.errorString();
         QFile::remove(path);
-        showCritical(this, tr("خطا"),
-            tr("ذخیره خروجی با خطا مواجه شد:\n%1").arg(detail));
+        showCritical(this, tr("Error"),
+            tr("Export failed:\n%1").arg(detail));
         return;
     }
-    showInformation(this, tr("ذخیره موفق"),
-        tr("%1 بیمار در فایل ذخیره شد.").arg(PersianText::toPersianDigits(QString::number(all.size()))));
+    showInformation(this, tr("Export complete"),
+        tr("%1 patients were exported.").arg(AppLanguage::localizeDigits(QString::number(all.size()))));
 }
 
 void MainWindow::onBackupNow() {
     QString err;
     const QString path = Database::instance().createBackup(&err);
     if (path.isEmpty()) {
-        showCritical(this, tr("خطا"),
-            tr("ایجاد پشتیبان با خطا مواجه شد:\n%1").arg(err));
+        showCritical(this, tr("Error"),
+            tr("Backup failed:\n%1").arg(err));
         return;
     }
     Database::instance().rotateBackups(30);
-    showInformation(this, tr("پشتیبان"),
-        tr("پشتیبان جدید ایجاد شد:\n%1").arg(path));
+    showInformation(this, tr("Backup"),
+        tr("A new backup was created:\n%1").arg(path));
 }
 
 void MainWindow::onRestoreBackup() {
     const QString path = QFileDialog::getOpenFileName(this,
-                                                      tr("انتخاب فایل پشتیبان"),
+                                                      tr("Select a backup file"),
                                                       Database::backupDir(),
                                                       backupFileFilter());
     if (path.isEmpty()) return;
@@ -556,7 +595,7 @@ void MainWindow::onRestoreBackup() {
 
 void MainWindow::onLoadInitialBackup() {
     const QString path = QFileDialog::getOpenFileName(this,
-                                                      tr("انتخاب فایل پشتیبان"),
+                                                      tr("Select a backup file"),
                                                       QString(),
                                                       backupFileFilter());
     if (path.isEmpty()) return;
@@ -565,8 +604,8 @@ void MainWindow::onLoadInitialBackup() {
 
 void MainWindow::onStartEmptyDatabase() {
     if (!m_repo->markInitialized()) {
-        showCritical(this, tr("خطا"),
-            tr("ثبت راه‌اندازی اولیه با خطا مواجه شد."));
+        showCritical(this, tr("Error"),
+            tr("Initial setup could not be recorded."));
         return;
     }
     refreshTable();
@@ -582,26 +621,25 @@ bool MainWindow::restoreFromBackupFile(const QString& path, bool initialLoad) {
     Database::BackupInfo info;
     QString inspectErr;
     if (!Database::inspectBackup(path, &info, &inspectErr)) {
-        showCritical(this, tr("فایل پشتیبان نامعتبر"),
-            tr("این فایل پشتیبان قابل خواندن نیست:\n%1").arg(inspectErr));
+        showCritical(this, tr("Invalid backup file"),
+            tr("This backup file is unreadable:\n%1").arg(inspectErr));
         return false;
     }
 
     const bool initial = initialLoad || isInitialSetupPending();
-    const QString patientCount = PersianText::toPersianDigits(QString::number(info.patientCount));
+    const QString patientCount = AppLanguage::localizeDigits(QString::number(info.patientCount));
     QMessageBox confirm(this);
     confirm.setIcon(QMessageBox::Question);
-    confirm.setLayoutDirection(Qt::RightToLeft);
-    confirm.setWindowTitle(initial ? tr("بارگذاری اطلاعات اولیه") : tr("بازگردانی پشتیبان"));
+    confirm.setWindowTitle(initial ? tr("Load initial data") : tr("Restore backup"));
     confirm.setText(initial
-        ? tr("اطلاعات بیماران از فایل زیر بارگذاری می‌شود:\n%1\n\nتعداد بیماران: %2")
+        ? tr("Patient data will be loaded from:\n%1\n\nPatients: %2")
               .arg(QFileInfo(path).fileName(), patientCount)
-        : tr("با ادامه، اطلاعات فعلی این دستگاه با اطلاعات فایل زیر جایگزین می‌شود:\n%1\n\n"
-             "تعداد بیماران در پشتیبان: %2\n\n"
-             "قبل از بازگردانی، از اطلاعات فعلی یک پشتیبان ایمن ساخته می‌شود.")
+        : tr("Continuing will replace the data on this device with the contents of:\n%1\n\n"
+             "Patients in the backup: %2\n\n"
+             "A safety backup of the current data is created before restoring.")
               .arg(QFileInfo(path).fileName(), patientCount));
-    auto* yesButton = confirm.addButton(initial ? tr("بارگذاری") : tr("بازگردانی"), QMessageBox::AcceptRole);
-    auto* noButton = confirm.addButton(tr("انصراف"), QMessageBox::RejectRole);
+    auto* yesButton = confirm.addButton(initial ? tr("Load") : tr("Restore"), QMessageBox::AcceptRole);
+    auto* noButton = confirm.addButton(tr("Cancel"), QMessageBox::RejectRole);
     confirm.setDefaultButton(noButton);
     confirm.setEscapeButton(noButton);
     confirm.exec();
@@ -611,8 +649,8 @@ bool MainWindow::restoreFromBackupFile(const QString& path, bool initialLoad) {
         QString backupErr;
         const QString safetyBackup = Database::instance().createBackup(&backupErr);
         if (safetyBackup.isEmpty()) {
-            showCritical(this, tr("خطا"),
-                tr("پیش از بازگردانی، ایجاد پشتیبان ایمن با خطا مواجه شد:\n%1").arg(backupErr));
+            showCritical(this, tr("Error"),
+                tr("Before restoring, creating a safety backup failed:\n%1").arg(backupErr));
             return false;
         }
     }
@@ -626,21 +664,21 @@ bool MainWindow::restoreFromBackupFile(const QString& path, bool initialLoad) {
         if (Database::instance().isOpen()) {
             m_repo->resetDatabase(Database::instance().sql());
         }
-        showCritical(this, tr("خطای بازگردانی"),
-            tr("بازگردانی پشتیبان با خطا مواجه شد:\n%1").arg(restoreErr));
+        showCritical(this, tr("Restore error"),
+            tr("Restoring the backup failed:\n%1").arg(restoreErr));
         return false;
     }
 
     m_repo->resetDatabase(Database::instance().sql());
     if (!m_repo->markInitialized()) {
-        showWarning(this, tr("هشدار"),
-            tr("اطلاعات بارگذاری شد، اما ثبت وضعیت راه‌اندازی کامل نشد."));
+        showWarning(this, tr("Warning"),
+            tr("The data was loaded, but the setup state could not be fully recorded."));
     }
     refreshTable();
     selectFirstRow();
-    showInformation(this, tr("بازگردانی انجام شد"),
-        initial ? tr("اطلاعات اولیه با موفقیت بارگذاری شد.")
-                : tr("پشتیبان با موفقیت بازگردانی شد."));
+    showInformation(this, tr("Restore complete"),
+        initial ? tr("Initial data was loaded successfully.")
+                : tr("The backup was restored successfully."));
     return true;
 }
 

@@ -1,3 +1,4 @@
+#include "core/AppLanguage.h"
 #include "db/Patient.h"
 #include "ui/AnchoredPlaceholderPlainTextEdit.h"
 #include "ui/PatientDialog.h"
@@ -17,20 +18,19 @@ class TextFieldsTest : public QObject {
     Q_OBJECT
 
 private slots:
-    void patientDialogFieldsFollowDirectionRules();
+    void englishFieldsFollowDirectionRules();
+    void persianFieldsFollowDirectionRules();
     void patientDialogHonorsRequestedInitialFocus();
 };
 
 namespace {
 
-QLineEdit* lineEditByPlaceholder(PatientDialog& dialog, const QString& placeholder) {
-    const auto fields = dialog.findChildren<QLineEdit*>();
-    for (auto* field : fields) {
-        if (field->placeholderText() == placeholder) {
-            return field;
-        }
-    }
-    return nullptr;
+QLineEdit* lineEdit(PatientDialog& dialog, const char* objectName) {
+    return dialog.findChild<QLineEdit*>(QLatin1String(objectName));
+}
+
+AnchoredPlaceholderPlainTextEdit* notesEdit(PatientDialog& dialog) {
+    return dialog.findChild<AnchoredPlaceholderPlainTextEdit*>(QStringLiteral("notesField"));
 }
 
 void verifyPersianLineEdit(QLineEdit* field) {
@@ -42,47 +42,65 @@ void verifyPersianLineEdit(QLineEdit* field) {
     QCOMPARE(field->cursorMoveStyle(), Qt::LogicalMoveStyle);
 }
 
+void verifyLatinLineEdit(QLineEdit* field) {
+    QVERIFY(field);
+    QCOMPARE(field->layoutDirection(), Qt::LeftToRight);
+    QVERIFY(field->alignment().testFlag(Qt::AlignLeft));
+    QVERIFY(field->alignment().testFlag(Qt::AlignAbsolute));
+    QVERIFY(field->alignment().testFlag(Qt::AlignVCenter));
+    QCOMPARE(field->cursorMoveStyle(), Qt::LogicalMoveStyle);
+}
+
 QWidget* fieldWidget(PatientDialog& dialog, PatientDialog::Field field) {
     switch (field) {
-        case PatientDialog::Field::FamilyName:
-            if (auto* target = dialog.findChild<QLineEdit*>(QStringLiteral("familyNameField"))) return target;
-            return lineEditByPlaceholder(dialog, QString::fromUtf8("Ù…Ø«Ø§Ù„: Ù…Ø­Ù…Ø¯ÛŒ"));
-        case PatientDialog::Field::GivenName:
-            if (auto* target = dialog.findChild<QLineEdit*>(QStringLiteral("givenNameField"))) return target;
-            return lineEditByPlaceholder(dialog, QString::fromUtf8("Ù…Ø«Ø§Ù„: Ø¹Ù„ÛŒ"));
-        case PatientDialog::Field::FileNumber:
-            if (auto* target = dialog.findChild<QLineEdit*>(QStringLiteral("fileNumberField"))) return target;
-            return lineEditByPlaceholder(dialog, QString::fromUtf8("Ù…Ø«Ø§Ù„: 1234"));
-        case PatientDialog::Field::Phone:
-            if (auto* target = dialog.findChild<QLineEdit*>(QStringLiteral("phoneField"))) return target;
-            return lineEditByPlaceholder(dialog, QString::fromUtf8("Ø§Ø®ØªÛŒØ§Ø±ÛŒ"));
-        case PatientDialog::Field::Notes:
-            if (auto* target = dialog.findChild<AnchoredPlaceholderPlainTextEdit*>(QStringLiteral("notesField"))) return target;
-            return dialog.findChild<AnchoredPlaceholderPlainTextEdit*>();
+        case PatientDialog::Field::FamilyName: return lineEdit(dialog, "familyNameField");
+        case PatientDialog::Field::GivenName:  return lineEdit(dialog, "givenNameField");
+        case PatientDialog::Field::FileNumber: return lineEdit(dialog, "fileNumberField");
+        case PatientDialog::Field::Phone:      return lineEdit(dialog, "phoneField");
+        case PatientDialog::Field::Notes:      return notesEdit(dialog);
     }
     return nullptr;
 }
 
 } // namespace
 
-void TextFieldsTest::patientDialogFieldsFollowDirectionRules() {
+void TextFieldsTest::englishFieldsFollowDirectionRules() {
+    AppLanguage::overrideForTesting(AppLanguage::Language::English);
     PatientDialog dialog(PatientDialog::Mode::Add, nullptr, Patient{});
 
-    verifyPersianLineEdit(lineEditByPlaceholder(dialog, QString::fromUtf8("مثال: محمدی")));
-    verifyPersianLineEdit(lineEditByPlaceholder(dialog, QString::fromUtf8("مثال: علی")));
-    verifyPersianLineEdit(lineEditByPlaceholder(dialog, QString::fromUtf8("اختیاری")));
+    // Free-text fields keep the natural left-to-right entry in English mode.
+    for (const char* name : {"familyNameField", "givenNameField", "phoneField"}) {
+        auto* field = lineEdit(dialog, name);
+        QVERIFY(field);
+        QCOMPARE(field->layoutDirection(), Qt::LeftToRight);
+        QCOMPARE(field->cursorMoveStyle(), Qt::LogicalMoveStyle);
+    }
 
-    auto* fileNumber = lineEditByPlaceholder(dialog, QString::fromUtf8("مثال: 1234"));
-    QVERIFY(fileNumber);
-    QCOMPARE(fileNumber->layoutDirection(), Qt::LeftToRight);
-    QVERIFY(fileNumber->alignment().testFlag(Qt::AlignLeft));
-    QVERIFY(fileNumber->alignment().testFlag(Qt::AlignAbsolute));
-    QVERIFY(fileNumber->alignment().testFlag(Qt::AlignVCenter));
-    QCOMPARE(fileNumber->cursorMoveStyle(), Qt::LogicalMoveStyle);
+    verifyLatinLineEdit(lineEdit(dialog, "fileNumberField"));
 
-    auto* notes = dialog.findChild<AnchoredPlaceholderPlainTextEdit*>();
+    auto* notes = notesEdit(dialog);
     QVERIFY(notes);
-    QCOMPARE(notes->anchoredPlaceholderText(), QString::fromUtf8("اختیاری"));
+    QCOMPARE(notes->anchoredPlaceholderText(), QStringLiteral("Optional"));
+    QCOMPARE(notes->placeholderText(), QString());
+    QCOMPARE(notes->layoutDirection(), Qt::LeftToRight);
+    QCOMPARE(notes->document()->defaultCursorMoveStyle(), Qt::LogicalMoveStyle);
+    QVERIFY(notes->tabChangesFocus());
+    QCOMPARE(notes->textCursor().position(), 0);
+}
+
+void TextFieldsTest::persianFieldsFollowDirectionRules() {
+    AppLanguage::overrideForTesting(AppLanguage::Language::Persian);
+    PatientDialog dialog(PatientDialog::Mode::Add, nullptr, Patient{});
+
+    verifyPersianLineEdit(lineEdit(dialog, "familyNameField"));
+    verifyPersianLineEdit(lineEdit(dialog, "givenNameField"));
+    verifyPersianLineEdit(lineEdit(dialog, "phoneField"));
+
+    // Case numbers stay Latin left-to-right in both languages.
+    verifyLatinLineEdit(lineEdit(dialog, "fileNumberField"));
+
+    auto* notes = notesEdit(dialog);
+    QVERIFY(notes);
     QCOMPARE(notes->placeholderText(), QString());
     QCOMPARE(notes->layoutDirection(), Qt::RightToLeft);
     QCOMPARE(notes->document()->defaultTextOption().textDirection(), Qt::RightToLeft);
@@ -96,9 +114,12 @@ void TextFieldsTest::patientDialogFieldsFollowDirectionRules() {
     QCOMPARE(firstBlock.blockFormat().layoutDirection(), Qt::RightToLeft);
     QVERIFY(firstBlock.blockFormat().alignment().testFlag(Qt::AlignRight));
     QVERIFY(firstBlock.blockFormat().alignment().testFlag(Qt::AlignAbsolute));
+
+    AppLanguage::overrideForTesting(AppLanguage::Language::English);
 }
 
 void TextFieldsTest::patientDialogHonorsRequestedInitialFocus() {
+    AppLanguage::overrideForTesting(AppLanguage::Language::English);
     const std::array<PatientDialog::Field, 5> fields = {
         PatientDialog::Field::FamilyName,
         PatientDialog::Field::GivenName,
